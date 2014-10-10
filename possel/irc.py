@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-
 from tornado import ioloop, gen, tcpclient
 
 loopinstance = ioloop.IOLoop.instance()
@@ -26,48 +25,112 @@ def split_irc_line(s):
     return prefix, command, args
 
 
-class IRCClient:
+class LineStream:
     def __init__(self):
         self.tcp_client_factory = tcpclient.TCPClient()
+        self.line_callback = None
+        self.connect_callback = None
 
-    def start(self):
-        loopinstance.add_callback(self.connect)
-
-    def _write(self, line):
-        if line[-1] != '\n':
-            line += '\n'
-        return self.connection.write(line.encode('utf8'))
-
-    def pong(self, value):
-        self._write('PONG :{}'.format(value))
+    @gen.coroutine
+    def connect(self, host, port):
+        print('connecting')
+        self.connection = yield self.tcp_client_factory.connect(host, port)
+        print('connected')
+        if self.connect_callback is not None:
+            self.connect_callback()
+        print('callbacked')
+        self._schedule_line()
 
     def handle_line(self, line):
-        line = str(line, encoding='utf8').strip()
-        (prefix, command, args) = split_irc_line(line)
-        print('Prefix: {}\nCommand: {}\nArgs: {}\n\n'.format(prefix, command, args))
-
-        if command.lower() == 'ping':
-            self.pong(args[0])
+        if self.line_callback is not None:
+            self.line_callback(line, self._write)
 
         self._schedule_line()
 
     def _schedule_line(self):
         self.connection.read_until(b'\n', self.handle_line)
 
-    @gen.coroutine
-    def connect(self):
-        print('connecting')
-        self.connection = yield self.tcp_client_factory.connect('irc.imaginarynet.org.uk', 6667)
-        print('connected, initialising')
-        yield self._write('NICK butts')
-        yield self._write('USER mother 0 * :Your Mother')
-        print('done that')
-        self._schedule_line()
+    def _write(self, line):
+        if line[-1] != '\n':
+            line += '\n'
+        return self.connection.write(line.encode('utf8'))
+
+
+class IRCClient:
+    def __init__(self, write_function):
+        self._write = write_function
+
+    def pong(self, value):
+        self._write('PONG :{}'.format(value))
+
+    def pre_line(self):
+        self._write('NICK butts')
+        self._write('USER mother 0 * :Your Mother')
+
+    def handle_line(self, line, write_func):
+        line = str(line, encoding='utf8').strip()
+        (prefix, command, args) = split_irc_line(line)
+
+        try:
+            handler = getattr(self, 'on_{}'.format(command.lower()))
+        except AttributeError:
+            self.log_unknown(command, prefix, args)
+        else:
+            handler(prefix, *args)
+
+    def log_unknown(self, command, prefix, args):
+        print('Unknown Command received: {} with args ({}) from prefix {}'.format(command, args, prefix))
+
+    # ===============
+    # Handlers follow
+    # ===============
+    def on_ping(self, prefix, token, *args):
+        self._write('PONG :{}'.format(token))
+
+    def on_notice(self, prefix, _, message):
+        print('NOTICE: {}'.format(message))
+
+    def on_join(self, who, channel):
+        pass
+
+    def on_372(self, *args):
+        pass
+
+    def on_353(self, prefix, who, _, channel, names):
+        pass
+
+    def on_366(self, prefix, who, channel, *args):
+        pass
+    # =============
+    # Handlers done
+    # =============
+
+    def join_channel(self, channel, password=None):
+        if password:
+            self._write('JOIN {} {}'.format(channel, password))
+        else:
+            self._write('JOIN {}'.format(channel))
+
+
+class IRCChannel:
+    def __init__(self, write_function, name):
+        self._write = write_function
+        self.name = name
+        self.nicks = []
+        self.messages = []
 
 
 def main():
-    b = IRCClient()
-    b.start()
+    line_stream = LineStream()
+    client = IRCClient(line_stream._write)
+
+    line_stream.connect_callback = client.pre_line
+    line_stream.line_callback = client.handle_line
+
+    line_stream.connect('irc.imaginarynet.org.uk', 6667)
+
+    loopinstance.call_later(2, client.join_channel, '#compsoc-minecraft')
+
     loopinstance.start()
 
 if __name__ == '__main__':
