@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
+import collections
+
 from tornado import ioloop, gen, tcpclient
 
 import possel
@@ -13,6 +15,15 @@ class Error(possel.Error):
 
 class UnknownNumericCommandError(Error):
     """ Exception thrown when a numeric command is given but no symbolic version can be found. """
+
+
+class KeyDefaultDict(collections.defaultdict):
+    def __missing__(self, key):
+        if self.default_factory is not None:
+            self[key] = self.default_factory(key)
+            return self[key]
+        else:
+            return super(KeyDefaultDict, self).__missing__(key)
 
 
 def split_irc_line(s):
@@ -33,6 +44,10 @@ def split_irc_line(s):
         args = s.split()
     command = args.pop(0)
     return prefix, command, args
+
+
+def get_nick(who):
+    return who.split('!')[0]
 
 
 def get_symbolic_command(command):
@@ -82,6 +97,8 @@ class IRCServerHandler:
         self.motd = ''
         self.nick = nick
 
+        self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name))
+
     def pong(self, value):
         self._write('PONG :{}'.format(value))
 
@@ -109,6 +126,36 @@ class IRCServerHandler:
     # ===============
     # Handlers follow
     # ===============
+    def on_ping(self, prefix, token, *args):
+        self._write('PONG :{}'.format(token))
+
+    def on_privmsg(self, who_from, to, msg):
+        if to.startswith('#'):
+            self.channels[to].new_message(get_nick(who_from), msg)
+
+    # ==========
+    # JOIN stuff
+    def on_join(self, who, channel):
+        nick = get_nick(who)
+        if nick == self.nick:
+            self.self_join(channel)
+        else:
+            self.channels[channel].user_join(nick)
+
+    def self_join(self, channel):
+        pass
+
+    def on_rpl_namreply(self, prefix, recipient, secrecy, channel, names):
+        for name in names.split():
+            self.channels[channel].user_join(name)
+
+    def on_rpl_endofnames(self, *args):
+        pass
+    # ==========
+
+    def on_notice(self, prefix, _, message):
+        print('NOTICE: {}'.format(message))
+
     def on_rpl_welcome(self, *args):
         pass
 
@@ -146,24 +193,6 @@ class IRCServerHandler:
     def on_rpl_statsconn(self, *args):
         pass
 
-    def on_ping(self, prefix, token, *args):
-        self._write('PONG :{}'.format(token))
-
-    def on_notice(self, prefix, _, message):
-        print('NOTICE: {}'.format(message))
-
-    # ==========
-    # JOIN stuff
-    def on_join(self, who, channel):
-        pass
-
-    def on_rpl_namreply(self, prefix, recipient, secrecy, channel, names):
-        pass
-
-    def on_rpl_endofnames(self, *args):
-        pass
-    # ==========
-
     def on_rpl_motdstart(self, *args):
         self.motd = ''
 
@@ -189,8 +218,18 @@ class IRCChannel:
     def __init__(self, write_function, name):
         self._write = write_function
         self.name = name
-        self.nicks = []
+        self.nicks = set()
         self.messages = []
+
+    def user_join(self, nick):
+        self.nicks.add(nick)
+
+    def new_message(self, who_from, msg):
+        self.messages.append((who_from, msg))
+        if msg.startswith('!d listmessages'):
+            print(self.messages)
+        elif msg.startswith('!d listusers'):
+            print(self.nicks)
 
 
 symbolic_to_numeric = {
