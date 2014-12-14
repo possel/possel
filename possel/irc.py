@@ -17,6 +17,10 @@ class UnknownNumericCommandError(Error):
     """ Exception thrown when a numeric command is given but no symbolic version can be found. """
 
 
+class UserNotFoundError(Error):
+    """ Exception Thrown when action is performed on non-existant nick.  """
+
+
 class KeyDefaultDict(collections.defaultdict):
     def __missing__(self, key):
         if self.default_factory is not None:
@@ -73,7 +77,7 @@ class LineStream:
         print('connected')
         if self.connect_callback is not None:
             self.connect_callback()
-        print('callbacked')
+            print('callbacked')
         self._schedule_line()
 
     def handle_line(self, line):
@@ -137,7 +141,8 @@ class IRCServerHandler:
     # Handlers follow
     # ===============
     def on_ping(self, prefix, token, *args):
-        self._write('PONG :{}'.format(token))
+        self.pong(token)
+        # self._write('PONG :{}'.format(token))
 
     def on_privmsg(self, who_from, to, msg):
         if to.startswith('#'):
@@ -164,7 +169,19 @@ class IRCServerHandler:
     # ==========
 
     def on_notice(self, prefix, _, message):
+        # TODO(moredhel): see whether this is needed...
         print('NOTICE: {}'.format(message))
+
+    def on_quit(self, prefix, message):
+        nick = get_nick(prefix)
+        if nick != self.nick:
+            for channel in self.channels:
+                self.channels[channel].user_quit(nick)
+
+    def on_part(self, prefix, channel):
+        nick = get_nick(prefix)
+        if nick != self.nick:
+            self.channels[channel].user_part(nick)
 
     def on_rpl_welcome(self, *args):
         pass
@@ -233,6 +250,16 @@ class IRCChannel:
 
     def user_join(self, nick):
         self.nicks.add(nick)
+
+    def user_quit(self, nick):
+        self.nicks.discard(nick)
+
+    def user_part(self, nick):
+        try:
+            self.nicks.remove(nick)
+        except KeyError as e:
+            raise UserNotFoundError(
+                'Tried to remove non-existent nick "{}" from channel {}'.format(nick, self.name)) from e
 
     def new_message(self, who_from, msg):
         self.messages.append((who_from, msg))
