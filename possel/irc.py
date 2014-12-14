@@ -73,7 +73,7 @@ class LineStream:
         print('connected')
         if self.connect_callback is not None:
             self.connect_callback()
-        print('callbacked')
+            print('callbacked')
         self._schedule_line()
 
     def handle_line(self, line):
@@ -137,7 +137,8 @@ class IRCServerHandler:
     # Handlers follow
     # ===============
     def on_ping(self, prefix, token, *args):
-        self._write('PONG :{}'.format(token))
+        self.pong(token)
+        # self._write('PONG :{}'.format(token))
 
     def on_privmsg(self, who_from, to, msg):
         if to.startswith('#'):
@@ -164,6 +165,7 @@ class IRCServerHandler:
     # ==========
 
     def on_notice(self, prefix, _, message):
+        # TODO(moredhel): see whether this is needed...
         print('NOTICE: {}'.format(message))
 
     def on_rpl_welcome(self, *args):
