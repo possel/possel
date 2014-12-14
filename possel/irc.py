@@ -78,7 +78,7 @@ class LineStream:
 
     def handle_line(self, line):
         if self.line_callback is not None:
-            self.line_callback(line, self._write)
+            self.line_callback(line)
 
         self._schedule_line()
 
@@ -106,7 +106,7 @@ class IRCServerHandler:
         self._write('NICK {}'.format(self.nick))
         self._write('USER mother 0 * :Your Mother')
 
-    def handle_line(self, line, write_func):
+    def handle_line(self, line):
         line = str(line, encoding='utf8').strip()
         (prefix, command, args) = split_irc_line(line)
 
