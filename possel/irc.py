@@ -92,6 +92,16 @@ class LineStream:
 
 
 class IRCServerHandler:
+    """ Models a single IRC Server and channels/users on that server.
+
+    Designed to be agnostic to various mechanisms for asynchronous code; you give it a `write_function` callback which
+    it will directly call whenever it wants to send things to the server. Then you feed it each line from the IRC server
+    by calling `IRCServerHandler.handle_line`.
+
+    Args:
+        nick (str): The nick to use for this server.
+        write_function: A callback that takes a single string argument and passes it on to the IRC server connection.
+    """
     def __init__(self, nick, write_function):
         self._write = write_function
         self.motd = ''
