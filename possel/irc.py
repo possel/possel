@@ -252,11 +252,39 @@ class IRCServerHandler:
             self._write('JOIN {}'.format(channel))
 
 
+class User:
+    def __init__(self, name):
+        self.name = name
+        self.modes = set()
+
+    def split_mode(self, mode):
+        # TODO(moredhel): wrap this in a try catch? as I'm assuming my input is at least 2 chars long
+        return mode[0], mode[1]
+
+    def mode_change(self, mode):
+        """ Either adds or removes the Input Mode, by parsing the text and seeing what is required """
+        direction, op = self.split_mode(mode)
+        if direction == '+':
+            self.modes[op]
+        elif direction == '-' and op in self.modes:
+            del self.modes[op]
+        else:
+            raise UnknownOpcode(
+                'UnknownOpcode "{}", expecting "-" or "+"'.format(op)
+            )
+
+    def mode_get(self, mode=None):
+        if mode in self.modes:
+            return set(self.modes[mode])
+        return self.modes
+
+
 class IRCChannel:
     def __init__(self, write_function, name):
         self._write = write_function
         self.name = name
-        self.nicks = set()
+        # self.nicks = set()
+        self.nicks = dict()
         self.messages = []
 
     def user_mode(self, nick, mode):
@@ -268,14 +296,22 @@ class IRCChannel:
         self.nicks[nick].mode_change(mode)
 
     def user_join(self, nick):
-        self.nicks.add(nick)
+        # self.nicks.add(nick)
+        if nick in self.nicks:
+            raise UserAlreadyExistsError(
+                'Tried to add user "{}" to channel {}'.format(nick, self.name)
+            )
+        self.nicks[nick] = User(nick)
 
     def user_quit(self, nick):
-        self.nicks.discard(nick)
+        # self.nicks.discard(nick)
+        # TODO(moredhel): make sure I'm doing it right
+        if nick in self.nicks:
+            del self.nicks[nick]
 
     def user_part(self, nick):
         try:
-            self.nicks.remove(nick)
+            del self.nicks[nick]
         except KeyError as e:
             raise UserNotFoundError(
                 'Tried to remove non-existent nick "{}" from channel {}'.format(nick, self.name)) from e
