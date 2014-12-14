@@ -150,7 +150,6 @@ class IRCServerHandler:
     # ===============
     def on_ping(self, prefix, token, *args):
         self.pong(token)
-        # self._write('PONG :{}'.format(token))
 
     def on_privmsg(self, who_from, to, msg):
         if to.startswith('#'):
@@ -283,7 +282,6 @@ class IRCChannel:
     def __init__(self, write_function, name):
         self._write = write_function
         self.name = name
-        # self.nicks = set()
         self.nicks = dict()
         self.messages = []
 
@@ -296,7 +294,6 @@ class IRCChannel:
         self.nicks[nick].mode_change(mode)
 
     def user_join(self, nick):
-        # self.nicks.add(nick)
         if nick in self.nicks:
             raise UserAlreadyExistsError(
                 'Tried to add user "{}" to channel {}'.format(nick, self.name)
@@ -304,7 +301,6 @@ class IRCChannel:
         self.nicks[nick] = User(nick)
 
     def user_quit(self, nick):
-        # self.nicks.discard(nick)
         # TODO(moredhel): make sure I'm doing it right
         if nick in self.nicks:
             del self.nicks[nick]
