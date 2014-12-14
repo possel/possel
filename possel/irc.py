@@ -21,6 +21,14 @@ class UserNotFoundError(Error):
     """ Exception Thrown when action is performed on non-existant nick.  """
 
 
+class UserAlreadyExistsError(Error):
+    """ Exception Thrown when there is an attempt at overwriting an existing user. """
+
+
+class UnknownOpcode(Error):
+    """ Exception thrown on Unknown Operation Code. """
+
+
 class KeyDefaultDict(collections.defaultdict):
     def __missing__(self, key):
         if self.default_factory is not None:
