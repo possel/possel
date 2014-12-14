@@ -1,2 +1,4 @@
-tornado
-pyzmq
+--index-url https://pypi.python.org/simple/
+
+# Install dependencies from setup.py, see that file for actual list
+-e .
