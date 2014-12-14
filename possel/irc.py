@@ -417,18 +417,34 @@ numeric_to_symbolic = {v: k for k, v in symbolic_to_numeric.items()}
 
 
 def main():
-    line_stream = LineStream()
-    server = IRCServerHandler('possel', line_stream._write)
+    import argparse
 
+    # Parse the CLI args
+    arg_parser = argparse.ArgumentParser(description='Possel IRC Client Server')
+    arg_parser.add_argument('-n', '--nick', default='possel',
+                            help='Nick to use on the server.')
+    arg_parser.add_argument('-s', '--server', default='irc.imaginarynet.org.uk',
+                            help='IRC Server to connect to')
+    arg_parser.add_argument('-c', '--channel', default='#possel-test',
+                            help='Channel to join on server')
+    args = arg_parser.parse_args()
+
+    # Create instances
+    line_stream = LineStream()
+    server = IRCServerHandler(args.nick, line_stream._write)
+
+    # Attach instances
     line_stream.connect_callback = server.pre_line
     line_stream.line_callback = server.handle_line
 
-    line_stream.connect('irc.imaginarynet.org.uk', 6667)
+    # Connect
+    line_stream.connect(args.server, 6667)
 
-    loopinstance.call_later(2, server.join_channel, '#possel-test')
+    # Join a channel
+    loopinstance.call_later(2, server.join_channel, args.channel)
 
+    # GOGOGOGO
     loopinstance.start()
 
 if __name__ == '__main__':
-    import sys
-    main(*sys.argv[1:])
+    main()
