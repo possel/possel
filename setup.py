@@ -36,6 +36,6 @@ setup(
     zip_safe=False,
     install_requires=install_requires,
     extras_require={},
-    scripts=[],
+    scripts=['bin/possel'],
     package_data={},
 )
