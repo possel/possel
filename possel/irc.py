@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 import collections
 
-from tornado import ioloop, gen, tcpclient
+from tornado import gen, ioloop, tcpclient
 
 import possel
 
