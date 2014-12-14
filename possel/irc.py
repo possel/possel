@@ -180,6 +180,9 @@ class IRCServerHandler:
         # TODO(moredhel): see whether this is needed...
         print('NOTICE: {}'.format(message))
 
+    def on_mode(self, prefix, channel, op, nick):
+        self.channels[channel].user_mode(nick, op)
+
     def on_quit(self, prefix, message):
         nick = get_nick(prefix)
         if nick != self.nick:
@@ -255,6 +258,14 @@ class IRCChannel:
         self.name = name
         self.nicks = set()
         self.messages = []
+
+    def user_mode(self, nick, mode):
+        if nick not in self.nicks:
+            raise UserNotFoundError(
+                'Tried to Change Op of user to "{}", but "{}" does not exist on channel "{}"'
+                .format(mode, nick, self.name)
+            )
+        self.nicks[nick].mode_change(mode)
 
     def user_join(self, nick):
         self.nicks.add(nick)
