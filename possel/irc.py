@@ -260,13 +260,9 @@ class User:
         self.name = name
         self.modes = set()
 
-    def split_mode(self, mode):
-        # TODO(moredhel): wrap this in a try catch? as I'm assuming my input is at least 2 chars long
-        return mode[0], mode[1]
-
     def mode_change(self, command):
         """ Either adds or removes the Input Mode, by parsing the text and seeing what is required """
-        direction, mode = self.split_mode(command)
+        direction, mode = command
         if direction == '+':
             self.modes.add(mode)
         elif direction == '-' and mode in self.modes:
