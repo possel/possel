@@ -264,16 +264,16 @@ class User:
         # TODO(moredhel): wrap this in a try catch? as I'm assuming my input is at least 2 chars long
         return mode[0], mode[1]
 
-    def mode_change(self, mode):
+    def mode_change(self, command):
         """ Either adds or removes the Input Mode, by parsing the text and seeing what is required """
-        direction, op = self.split_mode(mode)
+        direction, mode = self.split_mode(command)
         if direction == '+':
-            self.modes[op]
-        elif direction == '-' and op in self.modes:
-            del self.modes[op]
+            self.modes.add(mode)
+        elif direction == '-' and mode in self.modes:
+            self.modes.remove(mode)
         else:
             raise UnknownOpcode(
-                'UnknownOpcode "{}", expecting "-" or "+"'.format(op)
+                'UnknownOpcode "{}", expecting "-" or "+"'.format(command)
             )
 
     def mode_get(self, mode=None):
