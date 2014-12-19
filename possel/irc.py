@@ -135,7 +135,8 @@ class IRCServerHandler:
         try:
             symbolic_command = get_symbolic_command(command)
         except UnknownNumericCommandError:
-            pass
+            self.log_unhandled(command, prefix, args)
+            return
 
         try:
             handler_name = 'on_{}'.format(symbolic_command.lower())
