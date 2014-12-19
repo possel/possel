@@ -132,7 +132,10 @@ class IRCServerHandler:
         line = str(line, encoding='utf8').strip()
         (prefix, command, args) = split_irc_line(line)
 
-        symbolic_command = get_symbolic_command(command)
+        try:
+            symbolic_command = get_symbolic_command(command)
+        except UnknownNumericCommandError:
+            pass
 
         try:
             handler_name = 'on_{}'.format(symbolic_command.lower())
