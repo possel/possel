@@ -497,13 +497,16 @@ def main():
                             help='Nick to use on the server.')
     arg_parser.add_argument('-s', '--server', default='irc.imaginarynet.org.uk',
                             help='IRC Server to connect to')
-    arg_parser.add_argument('-c', '--channel', default='#possel-test',
+    arg_parser.add_argument('-c', '--channel', action='append',
                             help='Channel to join on server')
     arg_parser.add_argument('-D', '--debug', action='store_true',
                             help='Enable debug logging')
     arg_parser.add_argument('--die-on-exception', action='store_true',
                             help='Exit program when an unhandled exception occurs, rather than trying to recover')
     args = arg_parser.parse_args()
+
+    if not args.channel:
+        args.channel = ['#possel-test']
 
     # Create instances
     line_stream = LineStream()
@@ -517,9 +520,11 @@ def main():
     # Connect
     line_stream.connect(args.server, 6667)
 
-    # Join a channel
-    loopinstance.call_later(2, server.channels[args.channel].join)
+    # Join channels
+    for channel in args.channel:
+        loopinstance.call_later(2, server.channels[channel].join)
 
+    # Handle args
     if args.die_on_exception:
         loopinstance.handle_callback_exception = _exc_exit
 
