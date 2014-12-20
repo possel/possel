@@ -60,8 +60,14 @@ def split_irc_line(s):
     return prefix, command, args
 
 
-def get_nick(who):
-    return who.split('!')[0]
+def parse_identity(who):
+    nick, rest = who.split('!')
+    username, host = rest.split('@')
+
+    if username.startswith('~'):
+        username = username[1:]
+
+    return nick, username, host
 
 
 def get_symbolic_command(command):
@@ -116,12 +122,41 @@ class IRCServerHandler:
         nick (str): The nick to use for this server.
         write_function: A callback that takes a single string argument and passes it on to the IRC server connection.
     """
-    def __init__(self, nick):
+    def __init__(self, identity, debug_out_loud=False):
+        # Useful things
         self._write = None
+        self.identity = identity
+
+        # Default values
         self.motd = ''
-        self.nick = nick
 
         self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name))
+
+        self.users = dict()
+        self.users[identity.nick] = identity
+
+        # Configurables
+        self._debug_out_loud = debug_out_loud
+
+    def get_user_full(self, who):
+        nick, username, host = parse_identity(who)
+        try:
+            user = self.users[nick]
+            if not user.fully_known:
+                user.username = username
+                user.fully_known = True
+            return user
+        except KeyError:
+            self.users[nick] = User(nick, username)
+            self.users[nick].fully_known = True
+            return self.users[nick]
+
+    def get_user_by_nick(self, nick):
+        try:
+            return self.users[nick]
+        except KeyError:
+            self.users[nick] = User(nick)
+            return self.users[nick]
 
     @property
     def write_function(self):
@@ -135,8 +170,8 @@ class IRCServerHandler:
         self._write('PONG :{}'.format(value))
 
     def pre_line(self):
-        self._write('NICK {}'.format(self.nick))
-        self._write('USER mother 0 * :Your Mother')
+        self._write('NICK {}'.format(self.identity.nick))
+        self._write('USER {} 0 * :{}'.format(self.identity.username, self.identity.real_name))
 
     def handle_line(self, line):
         line = str(line, encoding='utf8').strip()
@@ -168,23 +203,25 @@ class IRCServerHandler:
 
     def on_privmsg(self, who_from, to, msg):
         if to.startswith('#'):
-            self.channels[to].on_new_message(get_nick(who_from), msg)
+            user = self.get_user_full(who_from)
+            self.channels[to].on_new_message(user, msg)
 
     # ==========
     # JOIN stuff
     def on_join(self, who, channel):
-        nick = get_nick(who)
-        if nick == self.nick:
+        user = self.get_user_full(who)
+        if user is self.identity:
             self.self_join(channel)
         else:
-            self.channels[channel].user_join(nick)
+            self.channels[channel].user_join(user)
 
     def self_join(self, channel):
         pass
 
-    def on_rpl_namreply(self, prefix, recipient, secrecy, channel, names):
-        for name in names.split():
-            self.channels[channel].user_join(name)
+    def on_rpl_namreply(self, prefix, recipient, secrecy, channel, nicks):
+        for nick in nicks.split():
+            user = self.get_user_by_nick(nick)
+            self.channels[channel].user_join(user)
 
     def on_rpl_endofnames(self, *args):
         pass
@@ -194,22 +231,23 @@ class IRCServerHandler:
         # TODO(moredhel): see whether this is needed...
         logger.info('NOTICE: {}'.format(message))
 
-    def on_mode(self, prefix, channel, op, nick):
-        self.channels[channel].user_mode(nick, op)
+    def on_mode(self, prefix, channel, command, nick):
+        user = self.get_user_by_nick(nick)
+        user.apply_mode_command(channel, command)
 
-    def on_quit(self, prefix, message):
-        nick = get_nick(prefix)
-        if nick != self.nick:
+    def on_quit(self, who, message):
+        user = self.get_user_full(who)
+        if user != self.identity:
             for channel in self.channels:
                 try:
-                    self.channels[channel].user_part(nick)
+                    self.channels[channel].user_part(user)
                 except UserNotFoundError:
                     pass
 
-    def on_part(self, prefix, channel):
-        nick = get_nick(prefix)
-        if nick != self.nick:
-            self.channels[channel].user_part(nick)
+    def on_part(self, who, channel):
+        user = self.get_user_full(who)
+        if user != self.identity:
+            self.channels[channel].user_part(user)
 
     def on_rpl_welcome(self, *args):
         pass
@@ -264,22 +302,35 @@ class IRCServerHandler:
 
 
 class User:
-    def __init__(self, name):
+    def __init__(self, name, username=None, real_name=None, password=None):
         self.name = name
-        self.modes = set()
+        self.username = username or name
+        self.real_name = real_name or name
+        self.modes = collections.defaultdict(set)
+        self.fully_known = False
 
-    def apply_mode_command(self, command):
+    @property
+    def nick(self):
+        return self.name
+
+    def apply_mode_command(self, channel, command):
         """ Applies a mode change command.
 
         Similar syntax to the `chmod` program.
         """
         direction, mode = command
         if direction == '+':
-            self.modes.add(mode)
+            self.modes[channel].add(mode)
         elif direction == '-' and mode in self.modes:
-            self.modes.remove(mode)
+            self.modes[channel].remove(mode)
         else:
             raise UnknownModeCommandError('Unknown mode change command "{}", expecting "-" or "+"'.format(command))
+
+    def __str__(self):
+        return '{}!{} ({})'.format(self.name, self.username, self.real_name)
+
+    def __repr__(self):
+        return str(self)
 
 
 class IRCChannel:
@@ -289,27 +340,21 @@ class IRCChannel:
         self.users = dict()
         self.messages = []
 
-    def user_mode(self, nick, mode):
-        if nick not in self.users:
-            raise UserNotFoundError(
-                'Tried to Change Op of user to "{}", but "{}" does not exist on channel "{}"'
-                .format(mode, nick, self.name)
-            )
-        self.users[nick].apply_mode_command(mode)
-
-    def user_join(self, nick):
-        if nick in self.users:
+    def user_join(self, user):
+        logger.debug('{} joined {}', user, self.name)
+        if user.nick in self.users:
             raise UserAlreadyExistsError(
-                'Tried to add user "{}" to channel {}'.format(nick, self.name)
+                'Tried to add user "{}" to channel {}'.format(user.nick, self.name)
             )
-        self.users[nick] = User(nick)
+        self.users[user.nick] = user
 
-    def user_part(self, nick):
+    def user_part(self, user):
+        logger.debug('{} parted from {}', user, self.name)
         try:
-            del self.users[nick]
+            del self.users[user.nick]
         except KeyError as e:
             raise UserNotFoundError(
-                'Tried to remove non-existent nick "{}" from channel {}'.format(nick, self.name)) from e
+                'Tried to remove non-existent nick "{}" from channel {}'.format(user.nick, self.name)) from e
 
     def on_new_message(self, who_from, msg):
         self.messages.append((who_from, msg))
@@ -495,6 +540,10 @@ def main():
     arg_parser = argparse.ArgumentParser(description='Possel IRC Client Server')
     arg_parser.add_argument('-n', '--nick', default='possel',
                             help='Nick to use on the server.')
+    arg_parser.add_argument('-u', '--username', default='possel',
+                            help='Username to use on the server')
+    arg_parser.add_argument('-r', '--real-name', default='Possel IRC',
+                            help='Real name to use on the server')
     arg_parser.add_argument('-s', '--server', default='irc.imaginarynet.org.uk',
                             help='IRC Server to connect to')
     arg_parser.add_argument('-c', '--channel', action='append',
@@ -510,7 +559,7 @@ def main():
 
     # Create instances
     line_stream = LineStream()
-    server = IRCServerHandler(args.nick)
+    server = IRCServerHandler(User(args.nick, args.username, args.real_name), debug_out_loud=args.debug_out_loud)
 
     # Attach instances
     server.write_function = line_stream.write_function
