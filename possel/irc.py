@@ -375,8 +375,9 @@ class IRCChannel:
     def part(self):
         pass
 
-    def send_message(self):
-        pass
+    def send_message(self, message):
+        for line in message.split('\n'):
+            self._write('PRIVMSG {} :{}'.format(self.name, line))
 
 
 symbolic_to_numeric = {
