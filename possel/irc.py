@@ -311,6 +311,8 @@ class IRCChannel:
             logger.debug(self.messages)
         elif msg.startswith('!d listusers'):
             logger.debug(self.users)
+        elif msg.startswith('!d raise'):
+            raise Error('Debug exception')
 
 
 symbolic_to_numeric = {
@@ -460,6 +462,13 @@ symbolic_to_numeric = {
 numeric_to_symbolic = {v: k for k, v in symbolic_to_numeric.items()}
 
 
+def _exc_exit(unused_callback):
+    import sys
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+
+
 def main():
     import argparse
 
@@ -473,6 +482,8 @@ def main():
                             help='Channel to join on server')
     arg_parser.add_argument('-D', '--debug', action='store_true',
                             help='Enable debug logging')
+    arg_parser.add_argument('--die-on-exception', action='store_true',
+                            help='Exit program when an unhandled exception occurs, rather than trying to recover')
     args = arg_parser.parse_args()
 
     # Create instances
@@ -488,6 +499,9 @@ def main():
 
     # Join a channel
     loopinstance.call_later(2, server.join_channel, args.channel)
+
+    if args.die_on_exception:
+        loopinstance.handle_callback_exception = _exc_exit
 
     loghandler = logbook.StderrHandler(level=logbook.DEBUG if args.debug else logbook.INFO)
 
