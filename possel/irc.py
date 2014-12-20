@@ -27,8 +27,8 @@ class UserAlreadyExistsError(Error):
     """ Exception Thrown when there is an attempt at overwriting an existing user. """
 
 
-class UnknownOpcode(Error):
-    """ Exception thrown on Unknown Operation Code. """
+class UnknownModeCommandError(Error):
+    """ Exception thrown on unknown mode change command. """
 
 
 class KeyDefaultDict(collections.defaultdict):
@@ -163,11 +163,12 @@ class IRCServerHandler:
     # Handlers follow
     # ===============
     def on_ping(self, prefix, token, *args):
+        logger.debug('Ping received: {}, {}', prefix, token)
         self.pong(token)
 
     def on_privmsg(self, who_from, to, msg):
         if to.startswith('#'):
-            self.channels[to].new_message(get_nick(who_from), msg)
+            self.channels[to].on_new_message(get_nick(who_from), msg)
 
     # ==========
     # JOIN stuff
@@ -268,14 +269,17 @@ class User:
         self.modes = set()
 
     def apply_mode_command(self, command):
-        """ Either adds or removes the Input Mode, by parsing the text and seeing what is required """
+        """ Applies a mode change command.
+
+        Similar syntax to the `chmod` program.
+        """
         direction, mode = command
         if direction == '+':
             self.modes.add(mode)
         elif direction == '-' and mode in self.modes:
             self.modes.remove(mode)
         else:
-            raise UnknownOpcode('UnknownOpcode "{}", expecting "-" or "+"'.format(command))
+            raise UnknownModeCommandError('Unknown mode change command "{}", expecting "-" or "+"'.format(command))
 
 
 class IRCChannel:
@@ -307,8 +311,9 @@ class IRCChannel:
             raise UserNotFoundError(
                 'Tried to remove non-existent nick "{}" from channel {}'.format(nick, self.name)) from e
 
-    def new_message(self, who_from, msg):
+    def on_new_message(self, who_from, msg):
         self.messages.append((who_from, msg))
+
         if msg.startswith('!d listmessages'):
             logger.debug(self.messages)
         elif msg.startswith('!d listusers'):
