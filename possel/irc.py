@@ -471,6 +471,8 @@ def main():
                             help='IRC Server to connect to')
     arg_parser.add_argument('-c', '--channel', default='#possel-test',
                             help='Channel to join on server')
+    arg_parser.add_argument('-D', '--debug', action='store_true',
+                            help='Enable debug logging')
     args = arg_parser.parse_args()
 
     # Create instances
@@ -487,8 +489,11 @@ def main():
     # Join a channel
     loopinstance.call_later(2, server.join_channel, args.channel)
 
+    loghandler = logbook.StderrHandler(level=logbook.DEBUG if args.debug else logbook.INFO)
+
     # GOGOGOGO
-    loopinstance.start()
+    with loghandler.applicationbound():
+        loopinstance.start()
 
 if __name__ == '__main__':
     main()
