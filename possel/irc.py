@@ -230,7 +230,6 @@ class IRCServerHandler:
     # ==========
 
     def on_notice(self, prefix, _, message):
-        # TODO(moredhel): see whether this is needed...
         logger.info('NOTICE: {}'.format(message))
 
     def on_mode(self, prefix, channel, command, nick):
@@ -271,8 +270,7 @@ class IRCServerHandler:
         pass
 
     def on_rpl_isupport(self, *args):
-        # TODO(kitb): Pull the officially supported encoding out of this message
-        pass
+        logger.debug('Server supports: {}', args)
 
     def on_rpl_luserclient(self, *args):
         pass
