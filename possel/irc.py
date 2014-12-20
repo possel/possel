@@ -237,6 +237,13 @@ class IRCServerHandler:
         user = self.get_user_by_nick(nick)
         user.apply_mode_command(channel, command)
 
+    def on_nick(self, who, new_nick):
+        user = self.get_user_full(who)
+        logger.debug('User {} changed nick to {}', user.nick, new_nick)
+        del self.users[user.nick]
+        user.name = new_nick
+        self.users[new_nick] = user
+
     def on_quit(self, who, message):
         user = self.get_user_full(who)
         if user != self.identity:
@@ -339,7 +346,7 @@ class IRCChannel:
     def __init__(self, write_function, name, debug_out_loud=False):
         self._write = write_function
         self.name = name
-        self.users = dict()
+        self.users = set()
         self.messages = []
 
         self._debug_out_loud = debug_out_loud
@@ -350,12 +357,12 @@ class IRCChannel:
             raise UserAlreadyExistsError(
                 'Tried to add user "{}" to channel {}'.format(user.nick, self.name)
             )
-        self.users[user.nick] = user
+        self.users.add(user)
 
     def user_part(self, user):
         logger.debug('{} parted from {}', user, self.name)
         try:
-            del self.users[user.nick]
+            self.users.remove(user)
         except KeyError as e:
             raise UserNotFoundError(
                 'Tried to remove non-existent nick "{}" from channel {}'.format(user.nick, self.name)) from e
