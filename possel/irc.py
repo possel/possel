@@ -99,7 +99,7 @@ class LineStream:
     def _schedule_line(self):
         self.connection.read_until(b'\n', self.handle_line)
 
-    def _write(self, line):
+    def write_function(self, line):
         if line[-1] != '\n':
             line += '\n'
         return self.connection.write(line.encode('utf8'))
@@ -116,12 +116,20 @@ class IRCServerHandler:
         nick (str): The nick to use for this server.
         write_function: A callback that takes a single string argument and passes it on to the IRC server connection.
     """
-    def __init__(self, nick, write_function):
-        self._write = write_function
+    def __init__(self, nick):
+        self._write = None
         self.motd = ''
         self.nick = nick
 
         self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name))
+
+    @property
+    def write_function(self):
+        return self._write
+
+    @write_function.setter
+    def write_function(self, new_write_function):
+        self._write = new_write_function
 
     def pong(self, value):
         self._write('PONG :{}'.format(value))
@@ -488,9 +496,10 @@ def main():
 
     # Create instances
     line_stream = LineStream()
-    server = IRCServerHandler(args.nick, line_stream._write)
+    server = IRCServerHandler(args.nick)
 
     # Attach instances
+    server.write_function = line_stream.write_function
     line_stream.connect_callback = server.pre_line
     line_stream.line_callback = server.handle_line
 
