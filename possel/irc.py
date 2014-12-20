@@ -190,7 +190,10 @@ class IRCServerHandler:
         nick = get_nick(prefix)
         if nick != self.nick:
             for channel in self.channels:
-                self.channels[channel].user_quit(nick)
+                try:
+                    self.channels[channel].user_part(nick)
+                except UserNotFoundError:
+                    pass
 
     def on_part(self, prefix, channel):
         nick = get_nick(prefix)
@@ -260,7 +263,7 @@ class User:
         self.name = name
         self.modes = set()
 
-    def mode_change(self, command):
+    def apply_mode_command(self, command):
         """ Either adds or removes the Input Mode, by parsing the text and seeing what is required """
         direction, mode = command
         if direction == '+':
@@ -268,21 +271,14 @@ class User:
         elif direction == '-' and mode in self.modes:
             self.modes.remove(mode)
         else:
-            raise UnknownOpcode(
-                'UnknownOpcode "{}", expecting "-" or "+"'.format(command)
-            )
-
-    def mode_get(self, mode=None):
-        if mode in self.modes:
-            return set(self.modes[mode])
-        return self.modes
+            raise UnknownOpcode('UnknownOpcode "{}", expecting "-" or "+"'.format(command))
 
 
 class IRCChannel:
     def __init__(self, write_function, name):
         self._write = write_function
         self.name = name
-        self.nicks = dict()
+        self.users = dict()
         self.messages = []
 
     def user_mode(self, nick, mode):
@@ -291,7 +287,7 @@ class IRCChannel:
                 'Tried to Change Op of user to "{}", but "{}" does not exist on channel "{}"'
                 .format(mode, nick, self.name)
             )
-        self.nicks[nick].mode_change(mode)
+        self.users[nick].apply_mode_command(mode)
 
     def user_join(self, nick):
         if nick in self.nicks:
@@ -299,11 +295,6 @@ class IRCChannel:
                 'Tried to add user "{}" to channel {}'.format(nick, self.name)
             )
         self.nicks[nick] = User(nick)
-
-    def user_quit(self, nick):
-        # TODO(moredhel): make sure I'm doing it right
-        if nick in self.nicks:
-            del self.nicks[nick]
 
     def user_part(self, nick):
         try:
