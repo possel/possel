@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import collections
+import pprint
 
 import logbook
 from tornado import gen, ioloop, tcpclient
@@ -361,8 +362,10 @@ class IRCChannel:
 
         if msg.startswith('!d listmessages'):
             logger.debug(self.messages)
+            self.send_message(self.messages)
         elif msg.startswith('!d listusers'):
             logger.debug(self.users)
+            self.send_message(pprint.pformat(self.users))
         elif msg.startswith('!d raise'):
             raise Error('Debug exception')
 
