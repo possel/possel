@@ -131,7 +131,8 @@ class IRCServerHandler:
         # Default values
         self.motd = ''
 
-        self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name))
+        self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name,
+                                                                       debug_out_loud=debug_out_loud))
 
         self.users = dict()
         self.users[identity.nick] = identity
@@ -335,11 +336,13 @@ class User:
 
 
 class IRCChannel:
-    def __init__(self, write_function, name):
+    def __init__(self, write_function, name, debug_out_loud=False):
         self._write = write_function
         self.name = name
         self.users = dict()
         self.messages = []
+
+        self._debug_out_loud = debug_out_loud
 
     def user_join(self, user):
         logger.debug('{} joined {}', user, self.name)
@@ -362,10 +365,16 @@ class IRCChannel:
 
         if msg.startswith('!d listmessages'):
             logger.debug(self.messages)
-            self.send_message(self.messages)
+
+            if self._debug_out_loud:
+                self.send_message(self.messages)
+
         elif msg.startswith('!d listusers'):
             logger.debug(self.users)
-            self.send_message(pprint.pformat(self.users))
+
+            if self._debug_out_loud:
+                self.send_message(pprint.pformat(self.users))
+
         elif msg.startswith('!d raise'):
             raise Error('Debug exception')
 
@@ -556,6 +565,8 @@ def main():
                             help='Enable debug logging')
     arg_parser.add_argument('--die-on-exception', action='store_true',
                             help='Exit program when an unhandled exception occurs, rather than trying to recover')
+    arg_parser.add_argument('--debug-out-loud', action='store_true',
+                            help='Print selected debug messages out over IRC')
     args = arg_parser.parse_args()
 
     if not args.channel:
