@@ -284,7 +284,7 @@ class IRCChannel:
         self.messages = []
 
     def user_mode(self, nick, mode):
-        if nick not in self.nicks:
+        if nick not in self.users:
             raise UserNotFoundError(
                 'Tried to Change Op of user to "{}", but "{}" does not exist on channel "{}"'
                 .format(mode, nick, self.name)
@@ -292,15 +292,15 @@ class IRCChannel:
         self.users[nick].apply_mode_command(mode)
 
     def user_join(self, nick):
-        if nick in self.nicks:
+        if nick in self.users:
             raise UserAlreadyExistsError(
                 'Tried to add user "{}" to channel {}'.format(nick, self.name)
             )
-        self.nicks[nick] = User(nick)
+        self.users[nick] = User(nick)
 
     def user_part(self, nick):
         try:
-            del self.nicks[nick]
+            del self.users[nick]
         except KeyError as e:
             raise UserNotFoundError(
                 'Tried to remove non-existent nick "{}" from channel {}'.format(nick, self.name)) from e
@@ -310,7 +310,7 @@ class IRCChannel:
         if msg.startswith('!d listmessages'):
             logger.debug(self.messages)
         elif msg.startswith('!d listusers'):
-            logger.debug(self.nicks)
+            logger.debug(self.users)
 
 
 symbolic_to_numeric = {
