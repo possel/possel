@@ -261,12 +261,6 @@ class IRCServerHandler:
     # Handlers done
     # =============
 
-    def join_channel(self, channel, password=None):
-        if password:
-            self._write('JOIN {} {}'.format(channel, password))
-        else:
-            self._write('JOIN {}'.format(channel))
-
 
 class User:
     def __init__(self, name):
@@ -321,6 +315,12 @@ class IRCChannel:
             logger.debug(self.users)
         elif msg.startswith('!d raise'):
             raise Error('Debug exception')
+
+    def join(self, password=None):
+        if password:
+            self._write('JOIN {} {}'.format(self.name, password))
+        else:
+            self._write('JOIN {}'.format(self.name))
 
 
 symbolic_to_numeric = {
@@ -507,7 +507,7 @@ def main():
     line_stream.connect(args.server, 6667)
 
     # Join a channel
-    loopinstance.call_later(2, server.join_channel, args.channel)
+    loopinstance.call_later(2, server.channels[args.channel].join())
 
     if args.die_on_exception:
         loopinstance.handle_callback_exception = _exc_exit
