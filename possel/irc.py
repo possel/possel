@@ -327,6 +327,12 @@ class IRCChannel:
         else:
             self._write('JOIN {}'.format(self.name))
 
+    def part(self):
+        pass
+
+    def send_message(self):
+        pass
+
 
 symbolic_to_numeric = {
     "RPL_WELCOME": '001',
@@ -512,7 +518,7 @@ def main():
     line_stream.connect(args.server, 6667)
 
     # Join a channel
-    loopinstance.call_later(2, server.channels[args.channel].join())
+    loopinstance.call_later(2, server.channels[args.channel].join)
 
     if args.die_on_exception:
         loopinstance.handle_callback_exception = _exc_exit
