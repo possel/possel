@@ -5,7 +5,8 @@ import os.path
 from setuptools import setup
 
 install_requires = ['tornado',
-                    'pyzmq']
+                    'pyzmq',
+                    'logbook']
 
 classifiers = [
     'Development Status :: 2 - Pre-Alpha',

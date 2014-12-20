@@ -2,10 +2,12 @@
 # -*- coding: utf8 -*-
 import collections
 
+import logbook
 from tornado import gen, ioloop, tcpclient
 
 import possel
 
+logger = logbook.Logger(__name__)
 loopinstance = ioloop.IOLoop.instance()
 
 
@@ -80,12 +82,12 @@ class LineStream:
 
     @gen.coroutine
     def connect(self, host, port):
-        print('connecting')
+        logger.debug('Connecting to server {}:{}', host, port)
         self.connection = yield self.tcp_client_factory.connect(host, port)
-        print('connected')
+        logger.debug('Connected')
         if self.connect_callback is not None:
             self.connect_callback()
-            print('callbacked')
+            logger.debug('Called post-connection callback')
         self._schedule_line()
 
     def handle_line(self, line):
@@ -147,7 +149,7 @@ class IRCServerHandler:
             handler(prefix, *args)
 
     def log_unhandled(self, command, prefix, args):
-        print('Unhandled Command received: {} with args ({}) from prefix {}'.format(command, args, prefix))
+        logger.warning('Unhandled Command received: {} with args ({}) from prefix {}'.format(command, args, prefix))
 
     # ===============
     # Handlers follow
@@ -181,7 +183,7 @@ class IRCServerHandler:
 
     def on_notice(self, prefix, _, message):
         # TODO(moredhel): see whether this is needed...
-        print('NOTICE: {}'.format(message))
+        logger.info('NOTICE: {}'.format(message))
 
     def on_mode(self, prefix, channel, op, nick):
         self.channels[channel].user_mode(nick, op)
@@ -245,7 +247,7 @@ class IRCServerHandler:
         self.motd += '\n'
 
     def on_rpl_endofmotd(self, *args):
-        print(self.motd)
+        logger.info(self.motd)
 
     # =============
     # Handlers done
@@ -306,9 +308,9 @@ class IRCChannel:
     def new_message(self, who_from, msg):
         self.messages.append((who_from, msg))
         if msg.startswith('!d listmessages'):
-            print(self.messages)
+            logger.debug(self.messages)
         elif msg.startswith('!d listusers'):
-            print(self.nicks)
+            logger.debug(self.nicks)
 
 
 symbolic_to_numeric = {
