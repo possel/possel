@@ -1,0 +1,10 @@
+We're using Tornado, note the websocket module and concurrent module. and
+gen.coroutine. Also zmq with curve because security.
+
+We're using python 3 because fuck it, we can. Please don't add python 2
+compatibility (unless we really take off and users actually want that).
+
+Current focus is making a nice IRC model in `possel.irc`, this is to be library
+agnostic (e.g. not using `twisted.internet.defer` or `tornado.concurrent.futures`
+(or whatever it is); asyncio might be feasible in future if people start writing
+adapters for it to all of the other async libraries).

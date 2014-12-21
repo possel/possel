@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import collections
+import pprint
 
-from tornado import ioloop, gen, tcpclient
+import chardet
+import logbook
+from tornado import gen, ioloop, tcpclient
 
 import possel
 
+logger = logbook.Logger(__name__)
 loopinstance = ioloop.IOLoop.instance()
 
 
@@ -15,6 +19,18 @@ class Error(possel.Error):
 
 class UnknownNumericCommandError(Error):
     """ Exception thrown when a numeric command is given but no symbolic version can be found. """
+
+
+class UserNotFoundError(Error):
+    """ Exception Thrown when action is performed on non-existant nick.  """
+
+
+class UserAlreadyExistsError(Error):
+    """ Exception Thrown when there is an attempt at overwriting an existing user. """
+
+
+class UnknownModeCommandError(Error):
+    """ Exception thrown on unknown mode change command. """
 
 
 class KeyDefaultDict(collections.defaultdict):
@@ -46,8 +62,14 @@ def split_irc_line(s):
     return prefix, command, args
 
 
-def get_nick(who):
-    return who.split('!')[0]
+def parse_identity(who):
+    nick, rest = who.split('!')
+    username, host = rest.split('@')
+
+    if username.startswith('~'):
+        username = username[1:]
+
+    return nick, username, host
 
 
 def get_symbolic_command(command):
@@ -68,49 +90,108 @@ class LineStream:
 
     @gen.coroutine
     def connect(self, host, port):
-        print('connecting')
+        logger.debug('Connecting to server {}:{}', host, port)
         self.connection = yield self.tcp_client_factory.connect(host, port)
-        print('connected')
+        logger.debug('Connected')
         if self.connect_callback is not None:
             self.connect_callback()
-        print('callbacked')
+            logger.debug('Called post-connection callback')
         self._schedule_line()
 
     def handle_line(self, line):
         if self.line_callback is not None:
-            self.line_callback(line, self._write)
+            self.line_callback(line)
 
         self._schedule_line()
 
     def _schedule_line(self):
         self.connection.read_until(b'\n', self.handle_line)
 
-    def _write(self, line):
+    def write_function(self, line):
         if line[-1] != '\n':
             line += '\n'
         return self.connection.write(line.encode('utf8'))
 
 
 class IRCServerHandler:
-    def __init__(self, nick, write_function):
-        self._write = write_function
-        self.motd = ''
-        self.nick = nick
+    """ Models a single IRC Server and channels/users on that server.
 
-        self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name))
+    Designed to be agnostic to various mechanisms for asynchronous code; you give it a `write_function` callback which
+    it will directly call whenever it wants to send things to the server. Then you feed it each line from the IRC server
+    by calling `IRCServerHandler.handle_line`.
+
+    Args:
+        nick (str): The nick to use for this server.
+        write_function: A callback that takes a single string argument and passes it on to the IRC server connection.
+    """
+    def __init__(self, identity, debug_out_loud=False):
+        # Useful things
+        self._write = None
+        self.identity = identity
+
+        # Default values
+        self.motd = ''
+
+        self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name,
+                                                                       debug_out_loud=debug_out_loud,
+                                                                       identity=identity))
+
+        self.users = dict()
+        self.users[identity.nick] = identity
+
+        # Configurables
+        self._debug_out_loud = debug_out_loud
+
+    def get_user_full(self, who):
+        nick, username, host = parse_identity(who)
+        try:
+            user = self.users[nick]
+            if not user.fully_known:
+                user.username = username
+                user.fully_known = True
+            return user
+        except KeyError:
+            self.users[nick] = User(nick, username)
+            self.users[nick].fully_known = True
+            return self.users[nick]
+
+    def get_user_by_nick(self, nick):
+        try:
+            return self.users[nick]
+        except KeyError:
+            self.users[nick] = User(nick)
+            return self.users[nick]
+
+    @property
+    def write_function(self):
+        return self._write
+
+    @write_function.setter
+    def write_function(self, new_write_function):
+        self._write = new_write_function
 
     def pong(self, value):
         self._write('PONG :{}'.format(value))
 
     def pre_line(self):
-        self._write('NICK {}'.format(self.nick))
-        self._write('USER mother 0 * :Your Mother')
+        self._write('NICK {}'.format(self.identity.nick))
+        self._write('USER {} 0 * :{}'.format(self.identity.username, self.identity.real_name))
 
-    def handle_line(self, line, write_func):
-        line = str(line, encoding='utf8').strip()
+    def handle_line(self, line):
+        try:
+            line = str(line, encoding='utf8')
+        except UnicodeDecodeError:
+            encoding = chardet.detect(line)['encoding']
+            logger.debug('UTF8 decode failed, tried autodetecting and got {}, decoding now', encoding)
+            line = str(line, encoding=encoding)
+        line = line.strip()
         (prefix, command, args) = split_irc_line(line)
 
-        symbolic_command = get_symbolic_command(command)
+        try:
+            symbolic_command = get_symbolic_command(command)
+        except UnknownNumericCommandError:
+            self.log_unhandled(command, prefix, args)
+            return
 
         try:
             handler_name = 'on_{}'.format(symbolic_command.lower())
@@ -121,40 +202,68 @@ class IRCServerHandler:
             handler(prefix, *args)
 
     def log_unhandled(self, command, prefix, args):
-        print('Unhandled Command received: {} with args ({}) from prefix {}'.format(command, args, prefix))
+        logger.warning('Unhandled Command received: {} with args ({}) from prefix {}'.format(command, args, prefix))
 
     # ===============
     # Handlers follow
     # ===============
     def on_ping(self, prefix, token, *args):
-        self._write('PONG :{}'.format(token))
+        logger.debug('Ping received: {}, {}', prefix, token)
+        self.pong(token)
 
     def on_privmsg(self, who_from, to, msg):
         if to.startswith('#'):
-            self.channels[to].new_message(get_nick(who_from), msg)
+            user = self.get_user_full(who_from)
+            self.channels[to].on_new_message(user, msg)
 
     # ==========
     # JOIN stuff
     def on_join(self, who, channel):
-        nick = get_nick(who)
-        if nick == self.nick:
+        user = self.get_user_full(who)
+        if user is self.identity:
             self.self_join(channel)
         else:
-            self.channels[channel].user_join(nick)
+            self.channels[channel].user_join(user)
 
     def self_join(self, channel):
         pass
 
-    def on_rpl_namreply(self, prefix, recipient, secrecy, channel, names):
-        for name in names.split():
-            self.channels[channel].user_join(name)
+    def on_rpl_namreply(self, prefix, recipient, secrecy, channel, nicks):
+        for nick in nicks.split():
+            user = self.get_user_by_nick(nick)
+            self.channels[channel].user_join(user)
 
     def on_rpl_endofnames(self, *args):
         pass
     # ==========
 
     def on_notice(self, prefix, _, message):
-        print('NOTICE: {}'.format(message))
+        logger.info('NOTICE: {}'.format(message))
+
+    def on_mode(self, prefix, channel, command, nick):
+        user = self.get_user_by_nick(nick)
+        user.apply_mode_command(channel, command)
+
+    def on_nick(self, who, new_nick):
+        user = self.get_user_full(who)
+        logger.debug('User {} changed nick to {}', user.nick, new_nick)
+        del self.users[user.nick]
+        user.name = new_nick
+        self.users[new_nick] = user
+
+    def on_quit(self, who, message):
+        user = self.get_user_full(who)
+        if user != self.identity:
+            for channel in self.channels:
+                try:
+                    self.channels[channel].user_part(user)
+                except UserNotFoundError:
+                    pass
+
+    def on_part(self, who, channel):
+        user = self.get_user_full(who)
+        if user != self.identity:
+            self.channels[channel].user_part(user)
 
     def on_rpl_welcome(self, *args):
         pass
@@ -169,8 +278,7 @@ class IRCServerHandler:
         pass
 
     def on_rpl_isupport(self, *args):
-        # TODO(kitb): Pull the officially supported encoding out of this message
-        pass
+        logger.debug('Server supports: {}', args)
 
     def on_rpl_luserclient(self, *args):
         pass
@@ -201,35 +309,109 @@ class IRCServerHandler:
         self.motd += '\n'
 
     def on_rpl_endofmotd(self, *args):
-        print(self.motd)
+        logger.info(self.motd)
 
     # =============
     # Handlers done
     # =============
 
-    def join_channel(self, channel, password=None):
-        if password:
-            self._write('JOIN {} {}'.format(channel, password))
+
+class User:
+    def __init__(self, name, username=None, real_name=None, password=None):
+        self.name = name
+        self.username = username or name
+        self.real_name = real_name or name
+        self.modes = collections.defaultdict(set)
+        self.fully_known = False
+
+    @property
+    def nick(self):
+        return self.name
+
+    def apply_mode_command(self, channel, command):
+        """ Applies a mode change command.
+
+        Similar syntax to the `chmod` program.
+        """
+        direction, mode = command
+        if direction == '+':
+            self.modes[channel].add(mode)
+        elif direction == '-' and mode in self.modes:
+            self.modes[channel].remove(mode)
         else:
-            self._write('JOIN {}'.format(channel))
+            raise UnknownModeCommandError('Unknown mode change command "{}", expecting "-" or "+"'.format(command))
+
+    def __str__(self):
+        modes = {}
+        for m in self.modes.values():
+            modes |= m
+
+        return '{}!{} +{}'.format(self.name, self.username,
+                                  ''.join(modes))
+
+    def __repr__(self):
+        return str(self)
 
 
 class IRCChannel:
-    def __init__(self, write_function, name):
+    def __init__(self, write_function, name, identity, debug_out_loud=False):
         self._write = write_function
         self.name = name
-        self.nicks = set()
+        self.identity = identity
+        self.users = set()
         self.messages = []
 
-    def user_join(self, nick):
-        self.nicks.add(nick)
+        self._debug_out_loud = debug_out_loud
 
-    def new_message(self, who_from, msg):
+    def user_join(self, user):
+        logger.debug('{} joined {}', user, self.name)
+        if user.nick in self.users:
+            raise UserAlreadyExistsError(
+                'Tried to add user "{}" to channel {}'.format(user.nick, self.name)
+            )
+        self.users.add(user)
+
+    def user_part(self, user):
+        logger.debug('{} parted from {}', user, self.name)
+        try:
+            self.users.remove(user)
+        except KeyError as e:
+            raise UserNotFoundError(
+                'Tried to remove non-existent nick "{}" from channel {}'.format(user.nick, self.name)) from e
+
+    def on_new_message(self, who_from, msg):
         self.messages.append((who_from, msg))
+
         if msg.startswith('!d listmessages'):
-            print(self.messages)
+            logger.debug(self.messages)
+
+            if self._debug_out_loud:
+                self.send_message(self.messages)
+
         elif msg.startswith('!d listusers'):
-            print(self.nicks)
+            logger.debug(self.users)
+
+            if self._debug_out_loud:
+                self.send_message(pprint.pformat(self.users))
+
+        elif msg.startswith('!d raise'):
+            raise Error('Debug exception')
+
+    def join(self, password=None):
+        if password:
+            self._write('JOIN {} {}'.format(self.name, password))
+        else:
+            self._write('JOIN {}'.format(self.name))
+
+    def part(self):
+        pass
+
+    def send_message(self, message):
+        if not isinstance(message, (str, bytes)):
+            message = str(message)
+        for line in message.split('\n'):
+            self.messages.append((self.identity, line))
+            self._write('PRIVMSG {} :{}'.format(self.name, line))
 
 
 symbolic_to_numeric = {
@@ -379,19 +561,64 @@ symbolic_to_numeric = {
 numeric_to_symbolic = {v: k for k, v in symbolic_to_numeric.items()}
 
 
-def main():
-    line_stream = LineStream()
-    server = IRCServerHandler('possel', line_stream._write)
+def _exc_exit(unused_callback):
+    import sys
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 
+
+def main():
+    import argparse
+
+    # Parse the CLI args
+    arg_parser = argparse.ArgumentParser(description='Possel IRC Client Server')
+    arg_parser.add_argument('-n', '--nick', default='possel',
+                            help='Nick to use on the server.')
+    arg_parser.add_argument('-u', '--username', default='possel',
+                            help='Username to use on the server')
+    arg_parser.add_argument('-r', '--real-name', default='Possel IRC',
+                            help='Real name to use on the server')
+    arg_parser.add_argument('-s', '--server', default='irc.imaginarynet.org.uk',
+                            help='IRC Server to connect to')
+    arg_parser.add_argument('-c', '--channel', action='append',
+                            help='Channel to join on server')
+    arg_parser.add_argument('-D', '--debug', action='store_true',
+                            help='Enable debug logging')
+    arg_parser.add_argument('--die-on-exception', action='store_true',
+                            help='Exit program when an unhandled exception occurs, rather than trying to recover')
+    arg_parser.add_argument('--debug-out-loud', action='store_true',
+                            help='Print selected debug messages out over IRC')
+    args = arg_parser.parse_args()
+
+    if not args.channel:
+        args.channel = ['#possel-test']
+
+    # Create instances
+    line_stream = LineStream()
+    server = IRCServerHandler(User(args.nick, args.username, args.real_name), debug_out_loud=args.debug_out_loud)
+
+    # Attach instances
+    server.write_function = line_stream.write_function
     line_stream.connect_callback = server.pre_line
     line_stream.line_callback = server.handle_line
 
-    line_stream.connect('irc.imaginarynet.org.uk', 6667)
+    # Connect
+    line_stream.connect(args.server, 6667)
 
-    loopinstance.call_later(2, server.join_channel, '#kitb')
+    # Join channels
+    for channel in args.channel:
+        loopinstance.call_later(2, server.channels[channel].join)
 
-    loopinstance.start()
+    # Handle args
+    if args.die_on_exception:
+        loopinstance.handle_callback_exception = _exc_exit
+
+    loghandler = logbook.StderrHandler(level=logbook.DEBUG if args.debug else logbook.INFO)
+
+    # GOGOGOGO
+    with loghandler.applicationbound():
+        loopinstance.start()
 
 if __name__ == '__main__':
-    import sys
-    main(*sys.argv[1:])
+    main()
