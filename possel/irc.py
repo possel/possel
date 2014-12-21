@@ -3,6 +3,7 @@
 import collections
 import pprint
 
+import chardet
 import logbook
 from tornado import gen, ioloop, tcpclient
 
@@ -176,7 +177,13 @@ class IRCServerHandler:
         self._write('USER {} 0 * :{}'.format(self.identity.username, self.identity.real_name))
 
     def handle_line(self, line):
-        line = str(line, encoding='utf8').strip()
+        try:
+            line = str(line, encoding='utf8')
+        except UnicodeDecodeError:
+            encoding = chardet.detect(line)['encoding']
+            logger.debug('UTF8 decode failed, tried autodetecting and got {}, decoding now', encoding)
+            line = str(line, encoding=encoding)
+        line = line.strip()
         (prefix, command, args) = split_irc_line(line)
 
         try:

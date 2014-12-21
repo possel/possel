@@ -4,9 +4,12 @@ import os.path
 
 from setuptools import setup
 
-install_requires = ['tornado',
-                    'pyzmq',
-                    'logbook']
+install_requires = [
+    'chardet',
+    'logbook',
+    'pyzmq',
+    'tornado',
+]
 
 classifiers = [
     'Development Status :: 2 - Pre-Alpha',
