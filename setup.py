@@ -4,6 +4,8 @@ import os.path
 
 from setuptools import setup
 
+import possel
+
 install_requires = [
     'chardet',
     'logbook',
@@ -24,7 +26,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme_file:
 setup(
     # Metadata
     name='possel-server',
-    version='0.0.1',
+    version=possel.__version__,
     packages=['possel'],
     author='Kit Barnes',
     author_email='kit@ninjalith.com',
