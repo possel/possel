@@ -400,6 +400,8 @@ class IRCChannel:
         pass
 
     def send_message(self, message):
+        if not isinstance(message, (str, bytes)):
+            message = str(message)
         for line in message.split('\n'):
             self._write('PRIVMSG {} :{}'.format(self.name, line))
 
