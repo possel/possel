@@ -139,6 +139,8 @@ class IRCServerHandler:
         self.users = dict()
         self.users[identity.nick] = identity
 
+        self.callbacks = collections.defaultdict(set)
+
         # Configurables
         self._debug_out_loud = debug_out_loud
 
@@ -161,6 +163,9 @@ class IRCServerHandler:
         except KeyError:
             self.users[nick] = User(nick)
             return self.users[nick]
+
+    def add_callback(self, signal, callback):
+        self.callbacks[signal].add(callback)
 
     @property
     def write_function(self):
@@ -200,6 +205,9 @@ class IRCServerHandler:
             self.log_unhandled(symbolic_command, prefix, args)
         else:
             handler(prefix, *args)
+
+        for callback in self.callbacks[symbolic_command.lower()]:
+            callback(self, prefix, *args)
 
     def log_unhandled(self, command, prefix, args):
         logger.warning('Unhandled Command received: {} with args ({}) from prefix {}'.format(command, args, prefix))
