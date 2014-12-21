@@ -133,7 +133,8 @@ class IRCServerHandler:
         self.motd = ''
 
         self.channels = KeyDefaultDict(lambda channel_name: IRCChannel(self._write, channel_name,
-                                                                       debug_out_loud=debug_out_loud))
+                                                                       debug_out_loud=debug_out_loud,
+                                                                       identity=identity))
 
         self.users = dict()
         self.users[identity.nick] = identity
@@ -341,16 +342,22 @@ class User:
             raise UnknownModeCommandError('Unknown mode change command "{}", expecting "-" or "+"'.format(command))
 
     def __str__(self):
-        return '{}!{} ({})'.format(self.name, self.username, self.real_name)
+        modes = {}
+        for m in self.modes.values():
+            modes |= m
+
+        return '{}!{} +{}'.format(self.name, self.username,
+                                  ''.join(modes))
 
     def __repr__(self):
         return str(self)
 
 
 class IRCChannel:
-    def __init__(self, write_function, name, debug_out_loud=False):
+    def __init__(self, write_function, name, identity, debug_out_loud=False):
         self._write = write_function
         self.name = name
+        self.identity = identity
         self.users = set()
         self.messages = []
 
@@ -403,6 +410,7 @@ class IRCChannel:
         if not isinstance(message, (str, bytes)):
             message = str(message)
         for line in message.split('\n'):
+            self.messages.append((self.identity, line))
             self._write('PRIVMSG {} :{}'.format(self.name, line))
 
 
