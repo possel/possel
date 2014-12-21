@@ -43,5 +43,5 @@ setup(
     install_requires=install_requires,
     extras_require={},
     scripts=['bin/possel'],
-    package_data={},
+    package_data={'': ['README.md']},
 )
