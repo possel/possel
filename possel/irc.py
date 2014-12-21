@@ -568,10 +568,8 @@ def _exc_exit(unused_callback):
     sys.exit(1)
 
 
-def main():
+def get_arg_parser():
     import argparse
-
-    # Parse the CLI args
     arg_parser = argparse.ArgumentParser(description='Possel IRC Client Server')
     arg_parser.add_argument('-n', '--nick', default='possel',
                             help='Nick to use on the server.')
@@ -589,31 +587,53 @@ def main():
                             help='Exit program when an unhandled exception occurs, rather than trying to recover')
     arg_parser.add_argument('--debug-out-loud', action='store_true',
                             help='Print selected debug messages out over IRC')
+    return arg_parser
+
+
+def get_parsed_args():
+    arg_parser = get_arg_parser()
     args = arg_parser.parse_args()
 
     if not args.channel:
         args.channel = ['#possel-test']
 
+    return args
+
+
+def get_attached_instances(args):
     # Create instances
     line_stream = LineStream()
-    server = IRCServerHandler(User(args.nick, args.username, args.real_name), debug_out_loud=args.debug_out_loud)
+    server_handler = IRCServerHandler(User(args.nick, args.username, args.real_name),
+                                      debug_out_loud=args.debug_out_loud)
 
     # Attach instances
-    server.write_function = line_stream.write_function
-    line_stream.connect_callback = server.pre_line
-    line_stream.line_callback = server.handle_line
+    server_handler.write_function = line_stream.write_function
+    line_stream.connect_callback = server_handler.pre_line
+    line_stream.line_callback = server_handler.handle_line
 
+    if args.die_on_exception:
+        loopinstance.handle_callback_exception = _exc_exit
+
+    return line_stream, server_handler
+
+
+def connect(args, line_stream, server_handler):
     # Connect
     line_stream.connect(args.server, 6667)
 
     # Join channels
     for channel in args.channel:
-        loopinstance.call_later(2, server.channels[channel].join)
+        loopinstance.call_later(2, server_handler.channels[channel].join)
 
-    # Handle args
-    if args.die_on_exception:
-        loopinstance.handle_callback_exception = _exc_exit
 
+def main():
+    args = get_parsed_args()
+
+    line_stream, server_handler = get_attached_instances()
+
+    connect(args, line_stream, server_handler)
+
+    # setup logging
     loghandler = logbook.StderrHandler(level=logbook.DEBUG if args.debug else logbook.INFO)
 
     # GOGOGOGO
