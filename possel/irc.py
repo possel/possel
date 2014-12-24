@@ -10,8 +10,10 @@ from tornado import gen, ioloop, tcpclient
 
 import possel
 
-VALID_ADAPTERS = {'tornado': 'possel.adapter.tornado',
-                  'asyncio': 'possel.adapter.asyncio'}
+VALID_ADAPTERS = {
+    'tornado': 'possel.adapter.tornado',
+    'asyncio': 'possel.adapter.asyncio',
+}
 
 logger = logbook.Logger(__name__)
 loopinstance = ioloop.IOLoop.instance()
