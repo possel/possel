@@ -10,6 +10,9 @@ from tornado import gen, ioloop, tcpclient
 
 import possel
 
+VALID_ADAPTERS = {'tornado': 'possel.adapter.tornado',
+                  'asyncio': 'possel.adapter.asyncio'}
+
 logger = logbook.Logger(__name__)
 loopinstance = ioloop.IOLoop.instance()
 
@@ -546,7 +549,7 @@ def _exc_exit(unused_callback):
     sys.exit(1)
 
 
-def _get_arg_parser():
+def get_arg_parser():
     import argparse
     arg_parser = argparse.ArgumentParser(description='Possel IRC Client Server')
     arg_parser.add_argument('-n', '--nick', default='possel',
@@ -565,13 +568,13 @@ def _get_arg_parser():
                             help='Exit program when an unhandled exception occurs, rather than trying to recover')
     arg_parser.add_argument('--debug-out-loud', action='store_true',
                             help='Print selected debug messages out over IRC')
-    arg_parser.add_argument('-a', '--adapter', default='tornado',
+    arg_parser.add_argument('-a', '--adapter', default='tornado', choices=VALID_ADAPTERS.keys(),
                             help='Which async adapter to use.')
     return arg_parser
 
 
-def _get_parsed_args():
-    arg_parser = _get_arg_parser()
+def get_parsed_args():
+    arg_parser = get_arg_parser()
     args = arg_parser.parse_args()
 
     if not args.channel:
@@ -581,7 +584,7 @@ def _get_parsed_args():
 
 
 def main():
-    args = _get_parsed_args()
+    args = get_parsed_args()
 
     # setup logging
     loghandler = logbook.StderrHandler(level=logbook.DEBUG if args.debug else logbook.INFO)
@@ -590,7 +593,7 @@ def main():
     server_handler = IRCServerHandler(User(args.nick, args.username, args.real_name), args.debug_out_loud)
 
     # Get adapter and connect
-    adapter = importlib.import_module('possel.adapter.{}'.format(args.adapter))
+    adapter = importlib.import_module(VALID_ADAPTERS[args.adapter])
     adapter.connect(args, server_handler, loghandler)
 
 
