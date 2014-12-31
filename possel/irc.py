@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import collections
-import pprint
 import importlib
+import pprint
 
 import chardet
 import logbook
-from tornado import gen, ioloop, tcpclient
 
 import possel
 
@@ -16,7 +15,6 @@ VALID_ADAPTERS = {
 }
 
 logger = logbook.Logger(__name__)
-loopinstance = ioloop.IOLoop.instance()
 
 
 class Error(possel.Error):

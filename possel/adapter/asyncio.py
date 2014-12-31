@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-import logbook
-import functools
 import asyncio
+import functools
 
-from possel import irc
+import logbook
 
 CHANNEL_JOIN_DELAY = 15
 
@@ -24,16 +23,19 @@ def _connect_done(args, server_handler, log_handler, t):
 
         asyncio.async(_read(reader, server_handler), loop=loop)
 
+
 def _write(writer, line):
     if line[-1] != '\n':
         line += '\n'
     writer.write(line.encode('utf8'))
-    
+
+
 @asyncio.coroutine
 def _read(reader, server_handler):
     line = yield from reader.readline()
     loop.call_soon(server_handler.handle_line, line)
     asyncio.async(_read(reader, server_handler), loop=loop)
+
 
 def connect(args, server_handler, log_handler):
     logger.debug('Connecting to server {}:{}', args.server, 6667)
