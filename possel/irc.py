@@ -2,12 +2,18 @@
 # -*- coding: utf8 -*-
 import collections
 import pprint
+import importlib
 
 import chardet
 import logbook
 from tornado import gen, ioloop, tcpclient
 
 import possel
+
+VALID_ADAPTERS = {
+    'tornado': 'possel.adapter.tornado',
+    'asyncio': 'possel.adapter.asyncio',
+}
 
 logger = logbook.Logger(__name__)
 loopinstance = ioloop.IOLoop.instance()
@@ -80,37 +86,6 @@ def get_symbolic_command(command):
             raise UnknownNumericCommandError("No numeric command found: '{}'".format(command)) from e
     else:
         return command
-
-
-class LineStream:
-    def __init__(self):
-        self.tcp_client_factory = tcpclient.TCPClient()
-        self.line_callback = None
-        self.connect_callback = None
-
-    @gen.coroutine
-    def connect(self, host, port):
-        logger.debug('Connecting to server {}:{}', host, port)
-        self.connection = yield self.tcp_client_factory.connect(host, port)
-        logger.debug('Connected')
-        if self.connect_callback is not None:
-            self.connect_callback()
-            logger.debug('Called post-connection callback')
-        self._schedule_line()
-
-    def handle_line(self, line):
-        if self.line_callback is not None:
-            self.line_callback(line)
-
-        self._schedule_line()
-
-    def _schedule_line(self):
-        self.connection.read_until(b'\n', self.handle_line)
-
-    def write_function(self, line):
-        if line[-1] != '\n':
-            line += '\n'
-        return self.connection.write(line.encode('utf8'))
 
 
 class IRCServerHandler:
@@ -595,6 +570,8 @@ def get_arg_parser():
                             help='Exit program when an unhandled exception occurs, rather than trying to recover')
     arg_parser.add_argument('--debug-out-loud', action='store_true',
                             help='Print selected debug messages out over IRC')
+    arg_parser.add_argument('-a', '--adapter', default='tornado', choices=VALID_ADAPTERS.keys(),
+                            help='Which async adapter to use.')
     return arg_parser
 
 
@@ -608,45 +585,19 @@ def get_parsed_args():
     return args
 
 
-def get_attached_instances(args):
-    # Create instances
-    line_stream = LineStream()
-    server_handler = IRCServerHandler(User(args.nick, args.username, args.real_name),
-                                      debug_out_loud=args.debug_out_loud)
-
-    # Attach instances
-    server_handler.write_function = line_stream.write_function
-    line_stream.connect_callback = server_handler.pre_line
-    line_stream.line_callback = server_handler.handle_line
-
-    if args.die_on_exception:
-        loopinstance.handle_callback_exception = _exc_exit
-
-    return line_stream, server_handler
-
-
-def connect(args, line_stream, server_handler):
-    # Connect
-    line_stream.connect(args.server, 6667)
-
-    # Join channels
-    for channel in args.channel:
-        loopinstance.call_later(2, server_handler.channels[channel].join)
-
-
 def main():
     args = get_parsed_args()
-
-    line_stream, server_handler = get_attached_instances()
-
-    connect(args, line_stream, server_handler)
 
     # setup logging
     loghandler = logbook.StderrHandler(level=logbook.DEBUG if args.debug else logbook.INFO)
 
-    # GOGOGOGO
-    with loghandler.applicationbound():
-        loopinstance.start()
+    # Get server handler
+    server_handler = IRCServerHandler(User(args.nick, args.username, args.real_name), args.debug_out_loud)
+
+    # Get adapter and connect
+    adapter = importlib.import_module(VALID_ADAPTERS[args.adapter])
+    adapter.connect(args, server_handler, loghandler)
+
 
 if __name__ == '__main__':
     main()
