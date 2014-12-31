@@ -9,11 +9,6 @@ import logbook
 
 import possel
 
-VALID_ADAPTERS = {
-    'tornado': 'possel.adapter.tornado',
-    'asyncio': 'possel.adapter.asyncio',
-}
-
 logger = logbook.Logger(__name__)
 
 
@@ -602,6 +597,12 @@ symbolic_to_numeric = {
     "ERR_USERSDONTMATCH": '502',
 }
 numeric_to_symbolic = {v: k for k, v in symbolic_to_numeric.items()}
+
+
+VALID_ADAPTERS = {
+    'tornado': 'possel.adapter.tornado',
+    'asyncio': 'possel.adapter.asyncio',
+}
 
 
 def _exc_exit(unused_callback):
