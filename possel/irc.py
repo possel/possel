@@ -222,8 +222,9 @@ class IRCServerHandler:
         try:
             line = str(line, encoding='utf8')
         except UnicodeDecodeError:
+            logger.debug('UTF8 decode failed, bytes: {}', line)
             encoding = chardet.detect(line)['encoding']
-            logger.debug('UTF8 decode failed, tried autodetecting and got {}, decoding now', encoding)
+            logger.debug('Tried autodetecting and got {}, decoding now', encoding)
             line = str(line, encoding=encoding)
         line = line.strip()
         (prefix, command, args) = split_irc_line(line)
