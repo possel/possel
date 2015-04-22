@@ -8,3 +8,7 @@ Currently little exists, standard virtualenv stuff applies except we're using py
 then `pip install -r requirements.txt` in the venv and you can start running it with:
 
     python -m possel.irc
+
+## Discussion
+
+We're on IRC! Server: `irc.imaginarynet.uk`, channel: `#possel`.
