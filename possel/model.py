@@ -294,13 +294,6 @@ class IRCChannel:
         elif msg.startswith('!d raise'):
             raise Error('Debug exception')
 
-    def join(self, password=None):
-        logger.debug('Joining %s', self.name)
-        if password:
-            self._write('JOIN {} {}'.format(self.name, password))
-        else:
-            self._write('JOIN {}'.format(self.name))
-
     def part(self):
         pass
 
