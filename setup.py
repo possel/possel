@@ -7,9 +7,7 @@ from setuptools import setup
 import possel
 
 install_requires = [
-    'chardet',
-    'logbook',
-    'pyzmq',
+    'pircel',
     'tornado',
 ]
 

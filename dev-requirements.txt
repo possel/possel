@@ -1,7 +1,3 @@
 flake8
 flake8-import-order
 pep8-naming
-sphinx
-sphinx-rtd-theme
-sphinxcontrib-napoleon
-sphinx-argparse

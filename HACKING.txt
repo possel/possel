@@ -1,10 +1,18 @@
-We're using Tornado, note the websocket module and concurrent module. and
-gen.coroutine. Also zmq with curve because security.
+We're using python 3 because we can. Please don't add python 2 compatibility (unless we really take off and users
+actually want that).
 
-We're using python 3 because fuck it, we can. Please don't add python 2
-compatibility (unless we really take off and users actually want that).
+IRC library stuff has been moved out into the pircel project, we'll just be a user of that project.
 
-Current focus is making a nice IRC model in `possel.irc`, this is to be library
-agnostic (e.g. not using `twisted.internet.defer` or `tornado.concurrent.futures`
-(or whatever it is); asyncio might be feasible in future if people start writing
-adapters for it to all of the other async libraries).
+Other libraries we'll use:
+
+* Tornado: async loop for cooperative multitasking, web server for fetch API, *maybe* sockets and websockets support for
+           push stuff.
+* probably ZeroMQ: Decent comms library with tornado interop built into its python bindings; libraries in so many
+                   languages.
+
+Check the issue tracker for outstanding tasks, current general state is:
+
+IRC parsing and modelling in pircel is in a vaguely usable state, needs to start growing with use now, feel free to
+write tests or generally poke it until it dies then fix what was broken.
+
+Web API and real time notification in possel is unstarted, I'm (KitB) about to start work on it.
