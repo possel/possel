@@ -37,6 +37,10 @@ class ModeNotFoundError(Error):
     """ Exception thrown when we try to remove a mode that a user doesn't have. """
 
 
+class ServerAlreadyAttachedError(Error):
+    """ Exception thrown when someone tries to attach a server handler to a server controller that already has one. """
+
+
 class KeyDefaultDict(collections.defaultdict):
     """ defaultdict modification that provides the key to the factory. """
     def __missing__(self, key):
@@ -163,7 +167,108 @@ def create_tables():
 
 
 class IRCServerController:
-    pass
+    def __init__(self, server_model):
+        self._server_model = server_model
+        self._user = server_model.user
+        self._server_handler = None
+        self.callbacks = {'privmsg': self._handle_privmsg,
+                          'join': self._handle_join,
+                          'rpl_namreply': self._handle_rpl_namreply,
+                          }
+
+    @property
+    def server_handler(self):
+        return self._server_handler
+
+    @server_handler.setter
+    def server_handler(self, new_server_handler):
+        if self._server_handler is not None:
+            raise ServerAlreadyAttachedError()
+
+        for signal, callback in self.callbacks.items():
+            new_server_handler.add_callback(signal, callback)
+
+        self._server_handler = new_server_handler
+
+    # =========================================================================
+    # Handlers
+    # --------
+    #
+    # Callbacks that will be attached to the protocol handler.
+    #
+    # Callbacks all pass the server handler itself as the first argument, we
+    # ignore it because we already have it, hence the "_" argument in all of
+    # these.
+    # =========================================================================
+    def _handle_join(self, _, who, channel):
+        nick, username, host = protocol.parse_identity(who)
+        if nick == self._user.nick:  # *We* are joining a channel
+            IRCBufferModel.get_or_create(name=channel, server=self._server_model)
+        else:  # Someone is joining a channel we're already in
+            buffer = IRCBufferModel.get(name=channel, server=self._server_model)
+            user, created = IRCUserModel.get_or_create(nick=nick,
+                                                       username=username,
+                                                       host=host,
+                                                       server=self._server_model)
+            IRCBufferMembershipRelation.create(buffer=buffer, user=user)
+
+    def _handle_privmsg(self, _, who_from, to, msg):
+        nick, username, host = protocol.parse_identity(who_from)
+        if to == self._user.nick:  # Private Message
+            pass
+        else:  # Hopefully a channel message?
+            buffer = IRCBufferModel.get(name=to)
+            user = IRCUserModel.get(nick=nick)
+            IRCLineModel.create(buffer=buffer, user=user, kind='message', content=msg)
+
+    def _handle_rpl_namreply(self, _, prefix, to, channel_privacy, channel, space_sep_names):
+        names = space_sep_names.split(' ')
+        buffer = IRCBufferModel.get(name=channel)
+        for name in names:
+            user = self.get_user_by_nick(name)
+            IRCBufferMembershipRelation.create(user=user, buffer=buffer)
+    # =========================================================================
+
+    # =========================================================================
+    # Helper methods
+    # --------------
+    #
+    # Yes, normally we don't do getters in Python but these have parameters.
+    # =========================================================================
+    def get_user_by_nick(self, nick):
+        """ Return the user object from just the nick.
+
+        Args:
+            nick (str): Either the nick or the nick with a channel mode prefix.
+        """
+        # Pull @ or + off the front
+        # I checked the RFC; these should be the only two chars
+        # We can later use these to determine modes
+        if nick[0] in '@+':
+            nick = nick[1:]
+
+        user, created = IRCUserModel.get_or_create(nick=nick, server=self._server_model)
+        return user
+    # =========================================================================
+
+    # =========================================================================
+    # Constructors / Factories
+    # =========================================================================
+    @classmethod
+    def new(cls, host, port, secure, user):
+        server_model = IRCServerModel.create(host=host, port=port, secure=secure, user=user)
+        return cls(server_model)
+
+    @classmethod
+    def get(cls, host, port):
+        server_model = IRCServerModel.get(host=host, port=port)
+        return cls(server_model)
+
+    @classmethod
+    def get_all(cls):
+        models = IRCServerModel.select()
+        return [cls(model) for model in models]
+    # =========================================================================
 
 
 class _OLD_DEPRECATED_IRCServerController:  # noqa
