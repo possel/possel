@@ -47,7 +47,7 @@ class KeyDefaultDict(collections.defaultdict):
             return super(KeyDefaultDict, self).__missing__(key)
 
 
-database = p.Database(None)  # Passing None means we can initialise it later with database.init('sqlite...')
+database = p.Proxy()
 
 
 class BaseModel(p.Model):
@@ -150,6 +150,16 @@ class IRCBufferMembershipRelation(BaseModel):
     """ Buffers and Users have a many-to-many relationship, this handles that. """
     buffer = p.ForeignKeyField(IRCBufferModel, related_name='memberships', on_delete='CASCADE')
     user = p.ForeignKeyField(IRCUserModel, related_name='memberships', on_delete='CASCADE')
+
+
+def create_tables():
+    database.create_tables([UserDetails,
+                            IRCServerModel,
+                            IRCUserModel,
+                            IRCBufferModel,
+                            IRCLineModel,
+                            IRCBufferMembershipRelation,
+                            ], safe=True)
 
 
 class IRCServerController:
