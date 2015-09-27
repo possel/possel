@@ -7,6 +7,7 @@ pircel.model
 This module defines an API for storing the state of an IRC server and probably includes some database bits too.
 """
 import collections
+import datetime
 import functools
 import logging
 
@@ -92,6 +93,10 @@ class IRCServerModel(BaseModel):
     user = p.ForeignKeyField(UserDetails)
     # =========================================================================
 
+    class Meta:
+        indexes = ((('host', 'port'), True),
+                   )
+
 
 class IRCUserModel(UserDetails):
     """ Models users that are connected to an IRC Server.
@@ -101,12 +106,17 @@ class IRCUserModel(UserDetails):
     host = p.TextField(null=True)  # where they're coming from
     server = p.ForeignKeyField(IRCServerModel, related_name='users', on_delete='CASCADE')
 
+    class Meta:
+        indexes = ((('server', 'nick'), True),
+                   )
+
 
 class IRCBufferModel(BaseModel):
     """ Models anything that will store a bunch of messages and maybe have some people in it.
 
     This means channels and PMs.
     """
+    name = p.TextField(unique=True)  # either a channel '#channel' or a nick 'nick'
     server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE')
 
 
@@ -116,7 +126,7 @@ line_types = [('message', 'Message'),
               ('part', 'Part'),
               ('quit', 'quit'),
               ('other', 'Other'),
-              ]
+              ]  # TODO: Consider more/less line types? Line types as display definitions?
 
 
 class IRCLineModel(BaseModel):
@@ -128,7 +138,7 @@ class IRCLineModel(BaseModel):
     buffer = p.ForeignKeyField(IRCBufferModel, related_name='lines')
 
     # Who and when
-    timestamp = p.DateTimeField()
+    timestamp = p.DateTimeField(default=datetime.datetime.now)
     user = p.ForeignKeyField(IRCUserModel, null=True)  # Can have lines with no User displayed
 
     # What
