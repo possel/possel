@@ -46,11 +46,107 @@ class KeyDefaultDict(collections.defaultdict):
             return super(KeyDefaultDict, self).__missing__(key)
 
 
-class IRCServerModel(p.Model):
+database = p.Database(None)  # Passing None means we can initialise it later with database.init('sqlite...')
+
+
+class BaseModel(p.Model):
+    class Meta:
+        database = database
+
+
+class UserDetails(BaseModel):
+    """ Models all details that are pertinent to every user.
+
+    Users that are connected to a server should use IRCUserModel, this is only really for defining our own details (e.g.
+    so we can send the "NICK ..." message at initial connection).
+    """
+    nick = p.CharField()
+    realname = p.TextField(null=True)
+    username = p.TextField(null=True)
+
+
+class IRCServerModel(BaseModel):
+    """ Models an IRC server, including how to connect to it.
+
+    Does *not* reference networks yet, if ever.
+    """
+    # =========================================================================
+    # Connection Details
+    # ------------------
+    #
+    # Standard IRC connection stuff.
+    #
+    # Doesn't interact with protocol objects; interesting to note?
+    # =========================================================================
+    host = p.TextField()
+    port = p.IntegerField(default=6697)  # You're damn right we default to SSL
+    secure = p.BooleanField(default=True)
+    # =========================================================================
+
+    # =========================================================================
+    # User Details
+    # ------------
+    #
+    # Who *we* are on this server.
+    # =========================================================================
+    user = p.ForeignKeyField(UserDetails)
+    # =========================================================================
+
+
+class IRCUserModel(UserDetails):
+    """ Models users that are connected to an IRC Server.
+
+    Inherits most of its fields from UserDetails.
+    """
+    host = p.TextField(null=True)  # where they're coming from
+    server = p.ForeignKeyField(IRCServerModel, related_name='users', on_delete='CASCADE')
+
+
+class IRCBufferModel(BaseModel):
+    """ Models anything that will store a bunch of messages and maybe have some people in it.
+
+    This means channels and PMs.
+    """
+    server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE')
+
+
+line_types = [('message', 'Message'),
+              ('notice', 'Notice'),
+              ('join', 'Join'),
+              ('part', 'Part'),
+              ('quit', 'quit'),
+              ('other', 'Other'),
+              ]
+
+
+class IRCLineModel(BaseModel):
+    """ Models anything that might be displayed in a buffer.
+
+    Typically this will be messages, notices, CTCP ACTIONs, joins, quits, mode changes, topic changes, etc.
+    """
+    # Where
+    buffer = p.ForeignKeyField(IRCBufferModel, related_name='lines')
+
+    # Who and when
+    timestamp = p.DateTimeField()
+    user = p.ForeignKeyField(IRCUserModel, null=True)  # Can have lines with no User displayed
+
+    # What
+    kind = p.CharField(max_length=20, default='message', choices=line_types)
+    content = p.TextField()
+
+
+class IRCBufferMembershipRelation(BaseModel):
+    """ Buffers and Users have a many-to-many relationship, this handles that. """
+    buffer = p.ForeignKeyField(IRCBufferModel, related_name='memberships', on_delete='CASCADE')
+    user = p.ForeignKeyField(IRCUserModel, related_name='memberships', on_delete='CASCADE')
+
+
+class IRCServerController:
     pass
 
 
-class IRCServerController(object):
+class _OLD_DEPRECATED_IRCServerController:  # noqa
     def __init__(self, server_model):
         pass
 
