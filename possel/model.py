@@ -168,7 +168,7 @@ class _OLD_DEPRECATED_IRCServerController:  # noqa
                 user.fully_known = True
             return user
         except KeyError:
-            self.users[nick] = User(nick, username)
+            self.users[nick] = User(nick, username)  # noqa
             self.users[nick].fully_known = True
             return self.users[nick]
 
@@ -195,7 +195,7 @@ class _OLD_DEPRECATED_IRCServerController:  # noqa
         try:
             user = self.users[nick]
         except KeyError:
-            self.users[nick] = User(nick)
+            self.users[nick] = User(nick)  # noqa
             user = self.users[nick]
 
         # Set +o or +v if we need to
@@ -288,7 +288,7 @@ class _OLD_DEPRECATED_IRCServerController:  # noqa
 
 
 @functools.total_ordering
-class User:
+class _OLD_DEPRECATED_User:  # noqa
     def __init__(self, name, username=None, real_name=None, password=None):
         self.name = name
         self.username = username or name
