@@ -3,8 +3,6 @@
 import logbook
 from tornado import gen, ioloop, tcpclient
 
-from possel import irc
-
 CHANNEL_JOIN_DELAY = 15
 
 logger = logbook.Logger(__name__)
@@ -42,7 +40,9 @@ class LineStream:
         return self.connection.write(line.encode('utf8'))
 
 
-def connect(args, server_handler, log_handler):
+def connect(args, server_handler):
+    import possel
+
     line_stream = LineStream()
 
     # Attach instances
@@ -51,7 +51,7 @@ def connect(args, server_handler, log_handler):
     line_stream.line_callback = server_handler.handle_line
 
     if args.die_on_exception:
-        loopinstance.handle_callback_exception = irc._exc_exit
+        loopinstance.handle_callback_exception = possel._exc_exit
 
     # Connect to server
     line_stream.connect(args.server, 6667)
@@ -60,5 +60,6 @@ def connect(args, server_handler, log_handler):
     for channel in args.channel:
         loopinstance.call_later(CHANNEL_JOIN_DELAY, server_handler.channels[channel].join)
 
-    with log_handler.applicationbound():
-        loopinstance.start()
+
+def main_loop():
+    loopinstance.start()
