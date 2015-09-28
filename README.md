@@ -1,13 +1,16 @@
 # Possel
 
 ## Running
-Currently little exists, standard virtualenv stuff applies except we're using python 3 so make your venv with
+Simple steps, assuming you're in a folder with a checkout of both pircel and possel as subfolders (called `pircel` and
+`possel`, of course):
 
-    virtualenv -p $(which python3) ...
+    virtualenv -p $(which python3) possel.env
+    . possel.env/bin/activate
+    pip install -e pircel
+    pip install -e possel
+    python -m possel.resources
 
-then `pip install -r requirements.txt` in the venv and you can start running it with:
-
-    possel
+That last one is the only one you'll need to repeat.
 
 ## Discussion
 
