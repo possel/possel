@@ -217,7 +217,7 @@ class IRCServerController:
             IRCBufferModel.get_or_create(name=channel, server=self._server_model)
         else:  # Someone is joining a channel we're already in
             buffer = IRCBufferModel.get(name=channel, server=self._server_model)
-            user, created = IRCUserModel.get_or_create(nick=nick,
+            user, created = IRCUserModel.create_or_get(nick=nick,
                                                        username=username,
                                                        host=host,
                                                        server=self._server_model)
@@ -258,7 +258,7 @@ class IRCServerController:
         if nick[0] in '@+':
             nick = nick[1:]
 
-        user, created = IRCUserModel.get_or_create(nick=nick, server=self._server_model)
+        user, created = IRCUserModel.create_or_get(nick=nick, server=self._server_model)
         return user
 
     @property
