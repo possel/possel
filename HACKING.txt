@@ -16,3 +16,6 @@ IRC parsing and modelling in pircel is in a vaguely usable state, needs to start
 write tests or generally poke it until it dies then fix what was broken.
 
 Web API and real time notification in possel is unstarted, I'm (KitB) about to start work on it.
+
+Until it's an issue we're not giving much thought to performance; in particular pircel is fairly synchronous so we'll
+spend a lot of time blocking on database bits and bobs. I *do* expect this will need to be addressed.
