@@ -17,6 +17,8 @@ import tornado.ioloop
 import tornado.web
 from tornado.web import url
 
+from possel import push
+
 
 class BaseAPIHandler(tornado.web.RequestHandler):
     def initialize(self, controllers):
@@ -37,6 +39,7 @@ class LinesHandler(BaseAPIHandler):
         before = self.get_argument('before', None)
         after = self.get_argument('after', None)
         kind = self.get_argument('kind', None)
+        last = self.get_argument('last', False)
 
         if not (line_id or before or after):
             raise tornado.web.HTTPError(403)
@@ -50,6 +53,8 @@ class LinesHandler(BaseAPIHandler):
             lines = lines.where(model.IRCLineModel.id >= after)
         if kind is not None:
             lines = lines.where(model.IRCLineModel.kind == kind)
+        if last:
+            lines = lines.order_by(-model.IRCLinemodel.id).limit(1)
 
         self.write(json.dumps([line.to_dict() for line in lines]))
 
@@ -110,6 +115,7 @@ def get_routes(controllers):
               (r'/buffer', BufferPostHandler),
               (r'/server/([0-9+]|all)', ServerGetHandler),
               (r'/server', ServerPostHandler),
+              (r'/push', push.ResourcePusher),
               ]
     routes = [route + ({'controllers': controllers},) for route in routes]
     return [url(*route) for route in routes]
