@@ -12,6 +12,7 @@ import functools
 import logging
 
 import peewee as p
+from playhouse import shortcuts
 
 import pircel
 from pircel import protocol
@@ -57,6 +58,9 @@ database = p.Proxy()
 class BaseModel(p.Model):
     class Meta:
         database = database
+
+    def to_dict(self):
+        return shortcuts.model_to_dict(self, recurse=False)
 
 
 class UserDetails(BaseModel):
@@ -148,6 +152,11 @@ class IRCLineModel(BaseModel):
     # What
     kind = p.CharField(max_length=20, default='message', choices=line_types)
     content = p.TextField()
+
+    def to_dict(self):
+        d = shortcuts.model_to_dict(self, recurse=False)
+        d['timestamp'] = d['timestamp'].replace(tzinfo=datetime.timezone.utc).timestamp()
+        return d
 
 
 class IRCBufferMembershipRelation(BaseModel):
