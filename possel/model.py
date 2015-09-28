@@ -260,6 +260,23 @@ class IRCServerController:
 
         user, created = IRCUserModel.get_or_create(nick=nick, server=self._server_model)
         return user
+
+    @property
+    def connection_details(self):
+        m = self._server_model
+        return m.host, m.port, m.secure
+
+    @property
+    def identity(self):
+        return self._user
+
+    @property
+    def channels(self):
+        n = IRCBufferModel.name
+        return self._server_model.buffers.where(n.startswith('#') |
+                                                n.startswith('&') |
+                                                n.startswith('+') |
+                                                n.startswith('!'))
     # =========================================================================
 
     # =========================================================================
@@ -278,7 +295,7 @@ class IRCServerController:
     @classmethod
     def get_all(cls):
         models = IRCServerModel.select()
-        return [cls(model) for model in models]
+        return {model.id: cls(model) for model in models}
     # =========================================================================
 
 
