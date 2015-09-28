@@ -41,7 +41,7 @@ class LinesHandler(BaseAPIHandler):
         kind = self.get_argument('kind', None)
         last = self.get_argument('last', False)
 
-        if not (line_id or before or after):
+        if not (line_id or before or after or last):
             raise tornado.web.HTTPError(403)
 
         lines = model.IRCLineModel.select()
@@ -54,7 +54,7 @@ class LinesHandler(BaseAPIHandler):
         if kind is not None:
             lines = lines.where(model.IRCLineModel.kind == kind)
         if last:
-            lines = lines.order_by(-model.IRCLinemodel.id).limit(1)
+            lines = lines.order_by(-model.IRCLineModel.id).limit(1)
 
         self.write(json.dumps([line.to_dict() for line in lines]))
 
