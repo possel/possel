@@ -110,6 +110,8 @@ class IRCUserModel(UserDetails):
     """ Models users that are connected to an IRC Server.
 
     Inherits most of its fields from UserDetails.
+
+    Don't delete user models, they're needed for line models.
     """
     host = p.TextField(null=True)  # where they're coming from
     server = p.ForeignKeyField(IRCServerModel, related_name='users', on_delete='CASCADE')
@@ -143,11 +145,11 @@ class IRCLineModel(BaseModel):
     Typically this will be messages, notices, CTCP ACTIONs, joins, quits, mode changes, topic changes, etc.
     """
     # Where
-    buffer = p.ForeignKeyField(IRCBufferModel, related_name='lines')
+    buffer = p.ForeignKeyField(IRCBufferModel, related_name='lines', on_delete='CASCADE')
 
     # Who and when
     timestamp = p.DateTimeField(default=datetime.datetime.now)
-    user = p.ForeignKeyField(IRCUserModel, null=True)  # Can have lines with no User displayed
+    user = p.ForeignKeyField(IRCUserModel, null=True, on_delete='CASCADE')  # Can have lines with no User displayed
 
     # What
     kind = p.CharField(max_length=20, default='message', choices=line_types)
