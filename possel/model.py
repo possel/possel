@@ -178,14 +178,20 @@ def create_tables():
 
 
 class IRCServerController:
+    # Callback signal definitions
+    new_line = 'new_line'
+    new_buffer = 'new_buffer'
+    new_server = 'new_server'
+
     def __init__(self, server_model):
         self._server_model = server_model
         self._user = server_model.user
         self._server_handler = None
-        self.callbacks = {'privmsg': self._handle_privmsg,
-                          'join': self._handle_join,
-                          'rpl_namreply': self._handle_rpl_namreply,
-                          }
+        self.protocol_callbacks = {'privmsg': self._handle_privmsg,
+                                   'join': self._handle_join,
+                                   'rpl_namreply': self._handle_rpl_namreply,
+                                   }
+        self.callbacks = collections.defaultdict(set)
 
     @property
     def server_handler(self):
@@ -196,7 +202,7 @@ class IRCServerController:
         if self._server_handler is not None:
             raise ServerAlreadyAttachedError()
 
-        for signal, callback in self.callbacks.items():
+        for signal, callback in self.protocol_callbacks.items():
             new_server_handler.add_callback(signal, callback)
 
         self._server_handler = new_server_handler
@@ -230,7 +236,8 @@ class IRCServerController:
         else:  # Hopefully a channel message?
             buffer = IRCBufferModel.get(name=to)
             user = IRCUserModel.get(nick=nick)
-            IRCLineModel.create(buffer=buffer, user=user, kind='message', content=msg)
+            line = IRCLineModel.create(buffer=buffer, user=user, kind='message', content=msg)
+            self._fire_callback(self.new_line, line.id)
 
     def _handle_rpl_namreply(self, _, prefix, to, channel_privacy, channel, space_sep_names):
         names = space_sep_names.split(' ')
@@ -280,6 +287,30 @@ class IRCServerController:
     # =========================================================================
 
     # =========================================================================
+    # Callbacks
+    # ---------
+    #
+    # Our clients don't want to deal with pure IRC callbacks, this class
+    # generates friendly callbacks like "new_line" and "channel_update".
+    #
+    # I should probably make a module that has a callback making object and
+    # use it here and in protocol.
+    # =========================================================================
+    def add_callback(self, signal, callback):
+        self.callbacks[signal].add(callback)
+
+    def remove_callback(self, signal, callback):
+        self.callbacks[signal].remove(callback)
+
+    def clear_callbacks(self, signal):
+        self.callbacks[signal] = set()
+
+    def _fire_callback(self, signal, *args, **kwargs):
+        for callback in set(self.callbacks[signal]):
+            callback(*args, **kwargs)
+    # =========================================================================
+
+    # =========================================================================
     # Constructors / Factories
     # =========================================================================
     @classmethod
@@ -297,6 +328,26 @@ class IRCServerController:
         models = IRCServerModel.select()
         return {model.id: cls(model) for model in models}
     # =========================================================================
+
+
+class ControllerSet:
+    def __init__(self, controllers):
+        self._controllers = {controller._server_model.id for controller in controllers}
+
+    def __getitem__(self, index):
+        return self._controllers[index]
+
+    @property
+    def controllers(self):
+        yield from self._controllers.values()
+
+    def add_callback(self, signal, callback):
+        for controller in self.controllers:
+            controller.add_callback(signal, callback)
+
+    def remove_callback(self, signal, callback):
+        for controller in self.controllers:
+            controller.remove_callback(signal, callback)
 
 
 class _OLD_DEPRECATED_IRCServerController:  # noqa
