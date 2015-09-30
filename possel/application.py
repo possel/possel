@@ -1,24 +1,43 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
+
 import peewee
 from pircel import model, tornado_adapter
 import tornado.ioloop
 import tornado.web
 from tornado.web import url
 
-from possel import push, resources
+from possel import push, resources, web_client
 
 
 def get_routes(controllers):
-    routes = [(r'/line', resources.LinesHandler),
-              (r'/buffer/([0-9+]|all)', resources.BufferGetHandler),
-              (r'/buffer', resources.BufferPostHandler),
-              (r'/server/([0-9+]|all)', resources.ServerGetHandler),
-              (r'/server', resources.ServerPostHandler),
-              (r'/push', push.ResourcePusher),
-              ]
-    routes = [route + ({'controllers': controllers},) for route in routes]
-    return [url(*route) for route in routes]
+    controller_routes = [url(r'/line', resources.LinesHandler),
+                         url(r'/buffer/([0-9+]|all)', resources.BufferGetHandler),
+                         url(r'/buffer', resources.BufferPostHandler),
+                         url(r'/server/([0-9+]|all)', resources.ServerGetHandler),
+                         url(r'/server', resources.ServerPostHandler),
+                         url(r'/user/([0-9+]|all)', resources.UserGetHandler),
+                         url(r'/push', push.ResourcePusher, name='push'),
+                         ]
+    for route in controller_routes:
+        route.kwargs.update(controllers=controllers)
+
+    routes = [url(r'/', web_client.WebUIServer, name='index'),
+              ] + controller_routes
+    print(routes)
+    return routes
+
+
+def get_relative_path(path):
+    """ Gets the path of a file under the current directory """
+    file_directory = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(file_directory, path)
+
+settings = {'template_path': get_relative_path('data/templates'),
+            'static_path': get_relative_path('data/static'),
+            'debug': True,
+            }
 
 
 def main():
@@ -33,7 +52,7 @@ def main():
     for client in clients.values():
         client.connect()
 
-    application = tornado.web.Application(get_routes(controllers))
+    application = tornado.web.Application(get_routes(controllers), **settings)
     application.listen(8080)
     tornado.ioloop.IOLoop.current().start()
 

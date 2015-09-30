@@ -11,7 +11,6 @@ resources.
 import json
 
 from pircel import model, tornado_adapter
-import tornado.ioloop
 import tornado.web
 
 
@@ -103,3 +102,12 @@ class ServerPostHandler(BaseAPIHandler):
         controller = model.IRCServerController(server)
         tornado_adapter.IRCClient.from_controller(controller).connect()
         self.controllers[server.id] = controller
+
+
+class UserGetHandler(BaseAPIHandler):
+    def get(self, user_id):
+        users = model.IRCUserModel.select()
+        if user_id != 'all':
+            users = users.where(model.IRCUserModel.id == user_id)
+
+        self.write(json.dumps([user.to_dict() for user in users]))
