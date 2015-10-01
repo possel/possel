@@ -1,11 +1,35 @@
 <html>
-<head>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-<script>
-var ws_url = "ws://" + window.location.host + "{{ reverse_url('push') }}";
-</script>
-<script src="{{ static_url('main.js') }}"></script>
-</head>
-<body>
-</body>
+  <head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="{{ static_url('main.css') }}">
+    <script>
+      var ws_url = "ws://" + window.location.host + "{{ reverse_url('push') }}";
+    </script>
+    <script src="{{ static_url('main.js') }}"></script>
+  </head>
+  <body>
+    <div class="container-fluid" id="outer-container">
+      <div class="row">
+        <div class="col-xs-2"><ul id="bufferlist" class="nav nav-pill nav-stacked" role="tablist"></ul></div>
+        <div class="col-xs-8 tab-content" id="message-pane"></div>
+        <div class="col-xs-2"></div>
+      </div>
+      <div class="row">
+        <div class="col-xs-2"></div>
+        <div class="col-xs-10">
+          <form role="form" id="message-input-form">
+            <div class="input-append input-prepend form-inline">
+              <input type="text" class="form-control" id="message-input">
+              <button type="submit" class="btn btn-default">Send</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

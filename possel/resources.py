@@ -18,6 +18,7 @@ class BaseAPIHandler(tornado.web.RequestHandler):
     def initialize(self, controllers):
         self.set_header('Content-Type', 'application/json')
         self.set_header('Access-Control-Allow-Origin', '*')
+        self.set_header('Access-Control-Allow-Headers', 'Content-Type')
         self.controllers = controllers
 
     def prepare(self):
