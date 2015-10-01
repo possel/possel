@@ -60,12 +60,18 @@ $(function(){
         });
     }
 
-    function handle_push(evt){
-        var id = evt.data;
-        get_line_by_id(id).then(function(data) {
-            var line = data[0];
-            new_line(line);
-        });
+    function handle_push(event){
+        var msg = JSON.parse(event.data);
+        switch(msg.type){
+            case "line":
+                get_line_by_id(msg.line).then(function(data) {
+                    var line = data[0];
+                    new_line(line);
+                });
+                break;
+            case "buffer":
+                break;
+        }
     }
 
     $('#message-input-form').submit(function(event) {

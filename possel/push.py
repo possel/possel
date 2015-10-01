@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from pircel import model
 import tornado.websocket
 
 
@@ -7,21 +8,20 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
     def check_origin(self, origin):
         return True
 
-    def send_line_id(self, line_id):
-        self.write_message(str(line_id))
+    def send_line_id(self, controller, line):
+        self.write_message({'type': 'line', 'line': line})
+
+    def send_buffer_id(self, controller, buffer):
+        self.write_message({'type': 'buffer', 'buffer': buffer, 'server': controller.server_model.id})
 
     def initialize(self, controllers):
         self.controllers = controllers
 
     def open(self):
-        # Attach all the callbacks
-        for controller in self.controllers.values():
-            controller.add_callback(controller.new_line, self.send_line_id)
+        model.signal_factory(model.new_line).connect(self.send_line_id)
 
     def on_close(self):
-        # Detach all the callbacks
-        for controller in self.controllers.values():
-            controller.remove_callback(controller.new_line, self.send_line_id)
+        model.signal_factory(model.new_line).disconnect(self.send_line_id)
 
 
 def main():
