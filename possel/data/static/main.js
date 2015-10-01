@@ -39,6 +39,7 @@ $(function(){
       var first = true;
 
       var inner_func = function(buffer){
+          buffers[buffer.id] = buffer;
         var active_class = first?' active':'';
         first = false;
         $("#bufferlist").append('<li role="presentation" class="' + active_class + '">'
@@ -70,6 +71,9 @@ $(function(){
                 });
                 break;
             case "buffer":
+                get_buffer(msg.buffer).then(function(buffer_data){
+                    new_buffer(buffer_data[0]);
+                });
                 break;
         }
     }
@@ -91,7 +95,6 @@ $(function(){
                 users[user.id] = user;
             });
             buffer_data[0].forEach(function(buffer) {
-                buffers[buffer.id] = buffer;
                 new_buffer(buffer);
             });
             var ws = new WebSocket(ws_url);

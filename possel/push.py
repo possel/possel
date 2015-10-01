@@ -19,9 +19,11 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
 
     def open(self):
         model.signal_factory(model.new_line).connect(self.send_line_id)
+        model.signal_factory(model.new_buffer).connect(self.send_buffer_id)
 
     def on_close(self):
         model.signal_factory(model.new_line).disconnect(self.send_line_id)
+        model.signal_factory(model.new_buffer).disconnect(self.send_buffer_id)
 
 
 def main():
