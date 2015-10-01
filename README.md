@@ -8,7 +8,7 @@ Simple steps, assuming you're in a folder with a checkout of both pircel and pos
     . possel.env/bin/activate
     pip install -e pircel
     pip install -e possel
-    python -m possel.resources
+    possel --port 8080 --debug
 
 That last one is the only one you'll need to repeat.
 
