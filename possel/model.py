@@ -15,9 +15,16 @@ import peewee as p
 from playhouse import shortcuts
 
 import pircel
-from pircel import protocol
+from pircel import protocol, signals
 
 logger = logging.getLogger(__name__)
+signal_factory = signals.namespace('model')
+
+
+# Callback signal definitions
+new_line = 'new_line'
+new_buffer = 'new_buffer'
+new_server = 'new_server'
 
 
 class Error(pircel.Error):
@@ -178,13 +185,8 @@ def create_tables():
 
 
 class IRCServerController:
-    # Callback signal definitions
-    new_line = 'new_line'
-    new_buffer = 'new_buffer'
-    new_server = 'new_server'
-
     def __init__(self, server_model):
-        self._server_model = server_model
+        self.server_model = server_model
         self._user = server_model.user
         self._server_handler = None
         self.protocol_callbacks = {'privmsg': self._handle_privmsg,
@@ -217,19 +219,24 @@ class IRCServerController:
     # ignore it because we already have it, hence the "_" argument in all of
     # these.
     # =========================================================================
-    def _handle_join(self, _, who, channel):
+    def _handle_join(self, _, **kwargs):
+        who = kwargs['prefix']
+        channel, = kwargs['args']
         nick, username, host = protocol.parse_identity(who)
         if nick == self._user.nick:  # *We* are joining a channel
-            IRCBufferModel.get_or_create(name=channel, server=self._server_model)
+            buffer, created = IRCBufferModel.get_or_create(name=channel, server=self.server_model)
+            signal_factory(new_buffer).send(self, buffer=buffer.id)
         else:  # Someone is joining a channel we're already in
-            buffer = IRCBufferModel.get(name=channel, server=self._server_model)
+            buffer = IRCBufferModel.get(name=channel, server=self.server_model)
             user, created = IRCUserModel.create_or_get(nick=nick,
                                                        username=username,
                                                        host=host,
-                                                       server=self._server_model)
+                                                       server=self.server_model)
             IRCBufferMembershipRelation.create(buffer=buffer, user=user)
 
-    def _handle_privmsg(self, _, who_from, to, msg):
+    def _handle_privmsg(self, _, **kwargs):
+        who_from = kwargs['prefix']
+        to, msg = kwargs['args']
         nick, username, host = protocol.parse_identity(who_from)
         if to == self._user.nick:  # Private Message
             pass
@@ -237,9 +244,10 @@ class IRCServerController:
             buffer = IRCBufferModel.get(name=to)
             user = IRCUserModel.get(nick=nick)
             line = IRCLineModel.create(buffer=buffer, user=user, kind='message', content=msg)
-            self._fire_callback(self.new_line, line.id)
+            signal_factory(new_line).send(self, line=line.id)
 
-    def _handle_rpl_namreply(self, _, prefix, to, channel_privacy, channel, space_sep_names):
+    def _handle_rpl_namreply(self, _, **kwargs):
+        to, channel_privacy, channel, space_sep_names = kwargs['args']
         names = space_sep_names.split(' ')
         buffer = IRCBufferModel.get(name=channel)
         for name in names:
@@ -265,12 +273,12 @@ class IRCServerController:
         if nick[0] in '@+':
             nick = nick[1:]
 
-        user, created = IRCUserModel.create_or_get(nick=nick, server=self._server_model)
+        user, created = IRCUserModel.create_or_get(nick=nick, server=self.server_model)
         return user
 
     @property
     def connection_details(self):
-        m = self._server_model
+        m = self.server_model
         return m.host, m.port, m.secure
 
     @property
@@ -280,34 +288,10 @@ class IRCServerController:
     @property
     def channels(self):
         n = IRCBufferModel.name
-        return self._server_model.buffers.where(n.startswith('#') |
-                                                n.startswith('&') |
-                                                n.startswith('+') |
-                                                n.startswith('!'))
-    # =========================================================================
-
-    # =========================================================================
-    # Callbacks
-    # ---------
-    #
-    # Our clients don't want to deal with pure IRC callbacks, this class
-    # generates friendly callbacks like "new_line" and "channel_update".
-    #
-    # I should probably make a module that has a callback making object and
-    # use it here and in protocol.
-    # =========================================================================
-    def add_callback(self, signal, callback):
-        self.callbacks[signal].add(callback)
-
-    def remove_callback(self, signal, callback):
-        self.callbacks[signal].remove(callback)
-
-    def clear_callbacks(self, signal):
-        self.callbacks[signal] = set()
-
-    def _fire_callback(self, signal, *args, **kwargs):
-        for callback in set(self.callbacks[signal]):
-            callback(*args, **kwargs)
+        return self.server_model.buffers.where(n.startswith('#') |
+                                               n.startswith('&') |
+                                               n.startswith('+') |
+                                               n.startswith('!'))
     # =========================================================================
 
     # =========================================================================
@@ -332,7 +316,7 @@ class IRCServerController:
 
 class ControllerSet:
     def __init__(self, controllers):
-        self._controllers = {controller._server_model.id for controller in controllers}
+        self._controllers = {controller.server_model.id for controller in controllers}
 
     def __getitem__(self, index):
         return self._controllers[index]
