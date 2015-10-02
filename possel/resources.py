@@ -106,6 +106,7 @@ class ServerPostHandler(BaseAPIHandler):
 
         interface = model.IRCServerInterface(server)
         tornado_adapter.IRCClient.from_interface(interface).connect()
+        self.interfaces[interface.server_model.id] = interface
 
 
 class UserGetHandler(BaseAPIHandler):
