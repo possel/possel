@@ -53,6 +53,10 @@ $(function(){
     var new_buffer = buffer_maker();
 
     function prepopulate_lines(last_line_data, nlines){
+        if (last_line_data.length == 0) {
+            console.warn("no lines found.");
+            return 0;
+        }
         var last_line = last_line_data[0];
         $.get("/line?after=" + (last_line.id - nlines)).then(function(lines){
             lines.forEach(function(line){
