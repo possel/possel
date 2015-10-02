@@ -136,4 +136,11 @@ class UserGetHandler(BaseAPIHandler):
         if user_id != 'all':
             users = users.where(model.IRCUserModel.id == user_id)
 
+        buffer = self.get_argument('buffer', None)
+        if buffer is not None:
+            buffer = int(buffer)
+            users = (users
+                     .join(model.IRCBufferMembershipRelation)
+                     .where(model.IRCBufferMembershipRelation.buffer == buffer))
+
         self.write(json.dumps([user.to_dict() for user in users]))
