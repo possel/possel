@@ -63,6 +63,7 @@ $(function(){
 
     function handle_push(event){
         var msg = JSON.parse(event.data);
+        console.log(msg);
         switch(msg.type){
             case "line":
                 get_line_by_id(msg.line).then(function(data) {
@@ -100,6 +101,9 @@ $(function(){
             var ws = new WebSocket(ws_url);
             ws.onopen = function() {
                 console.log("connected");
+            };
+            ws.onclose = function() {
+                console.log("disconnected");
             };
             ws.onmessage = handle_push;
             prepopulate_lines(last_line_data[0], 30);
