@@ -18,7 +18,7 @@ That last one is the only one you'll need to repeat.
 
     # Connecting, joining, posting
     post '{"host": "irc.imaginarynet.org.uk", "port": 6697, "secure": true, "nick": "possel", "realname": "Possel IRC", "username": "possel"}' localhost:8080/server
-    post '{"server_id": 1, "name": "#possel-test"}' localhost:8080/buffer
+    post '{"server": 1, "name": "#possel-test"}' localhost:8080/buffer
     post '{"buffer": 1, "content": "butts"}' localhost:8080/line
 
     # Getting lines
