@@ -98,7 +98,7 @@ $(function(){
             buffer_data[0].forEach(function(buffer) {
                 new_buffer(buffer);
             });
-            var ws = new WebSocket(ws_url);
+            var ws = new ReconnectingWebSocket(ws_url);
             ws.onopen = function() {
                 console.log("connected");
             };
