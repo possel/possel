@@ -87,6 +87,8 @@ class BufferPostHandler(BaseAPIHandler):
         interface = self.interfaces[server_id]
         interface.server_handler.join(name)
 
+        self.write({})
+
 
 class ServerGetHandler(BaseAPIHandler):
     def get(self, server_id):
@@ -111,6 +113,8 @@ class ServerPostHandler(BaseAPIHandler):
         interface = model.IRCServerInterface(server)
         tornado_adapter.IRCClient.from_interface(interface).connect()
         self.interfaces[interface.server_model.id] = interface
+
+        self.write({})
 
 
 class UserGetHandler(BaseAPIHandler):
