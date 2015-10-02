@@ -4,6 +4,18 @@ var possel = {
   get_users: function(id){
     return $.get("/user/" + id);
   },
+  events: {
+    submit_event: function(node) {
+      $(node).submit(function(event) {
+        event.preventDefault();
+        var message = $('#message-input').val();
+        var buffer_id = $('.buffer.active')[0].id;
+        possel.send_line(buffer_id, message).then(function(){
+          $('#message-input').val('');
+        });
+      });
+    }
+  },
   get_buffer: function(id){
     return $.get("/buffer/" + id);
   },
@@ -14,7 +26,7 @@ var possel = {
     return $.get("/line?last=true");
   },
   send_line: function(buffer, content){
-    $.ajax({
+    return $.ajax({
       type: 'POST',
       url: '/line',
       data: JSON.stringify({ buffer: buffer,
@@ -25,28 +37,70 @@ var possel = {
   }
 };
 
+var util = {
+  node: function(elem, val, attrs) {
+    var element = $("<" + elem + ">");
+    if (val instanceof Array) {
+      for(var i in val) {
+        element.append(val[i]);
+      }
+    } else {
+      element.html(val);
+    }
+    if (attrs !== undefined) {
+      var keys = Object.keys(attrs);
+      for(var a in keys) {
+        element.attr(keys[a], attrs[keys[a]]);
+      }
+    }
+    return element;
+  }
+}
+
 $(function(){
   var users = [], buffers = [];
 
   function new_line(line){
     var buffer = buffers[line.buffer], user = users[line.user];
-    $("#" + buffer.id).append("<div class=\"buffer-line\"><span class=\"date column\">" + moment(line.timestamp).format("hh:mm:ss")
-                              + "</span><span class=\"nick column mid-column\">" + user.nick
-                              + "</span><span class=\"message column mid-column\">" + line.content + "</span></div>");
+    $("#" + buffer.id).append(
+      util.node("div",
+                       [util.node("span", user.nick, {
+                         class: "nick column mid-column"
+                       })
+                       , util.node("span", line.content, {
+                         class: "message column mid-column"
+                       })],
+                       {
+                         class: "buffer-line"
+                       }));
   }
 
   function buffer_maker(){
     var first = true;
-
     var inner_func = function(buffer){
       buffers[buffer.id] = buffer;
       var active_class = first?' active':'';
       first = false;
-      $("#bufferlist").append('<li role="presentation" class="' + active_class + '">'
-                              + '<a href="#' + buffer.id + '" role="tab" data-toggle="tab" aria-controls="' + buffer.id + '">'
-                              + buffer.name
-                              + '</a></li>');
-      $("#message-pane").append('<div id="' + buffer.id + '" class="buffer tab-pane' + active_class + '" role="tabpanel"></div>');
+      $("#bufferlist").append(
+        util.node("li",
+                         util.node("a",
+                                          buffer.name, {
+                                            href: "#" + buffer.id,
+                                            role: "tab",
+                                            "data-toggle": "tab",
+                                            "aria-controls": buffer.id
+                                          }), {
+                           role: "presentation",
+                           class: active_class
+                         }
+                        )
+      );
+      $("#message-pane").append(
+        util.node("div", null, {
+          id: buffer.id,
+          class: "buffer tab-pane " + active_class,
+          role: "tabpanel"
+        }));
     }
     return inner_func;
   }
@@ -88,14 +142,7 @@ $(function(){
     }
   }
 
-  $('#message-input-form').submit(function(event) {
-    event.preventDefault();
-    var message = $('#message-input').val();
-    var buffer_id = $('.buffer.active')[0].id;
-    possel.send_line(buffer_id, message);
-    $('#message-input').val('');
-  });
-
+  possel.events.submit_event('#message-input-form');
   $.when(possel.get_users("all"),
          possel.get_buffer("all"),
          possel.get_last_line()
