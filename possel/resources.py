@@ -9,9 +9,14 @@ resources.
 """
 
 import json
+import logging
 
 from pircel import model, tornado_adapter
 import tornado.web
+
+from possel import commands
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAPIHandler(tornado.web.RequestHandler):
@@ -30,6 +35,10 @@ class BaseAPIHandler(tornado.web.RequestHandler):
 
 
 class LinesHandler(BaseAPIHandler):
+    def initialize(self, *args, **kwargs):
+        super(LinesHandler, self).initialize(*args, **kwargs)
+        self.dispatcher = commands.Dispatcher(self.interfaces)
+
     def get(self):
         line_id = self.get_argument('id', None)
         before = self.get_argument('before', None)
@@ -58,10 +67,14 @@ class LinesHandler(BaseAPIHandler):
         buffer_id = self.json['buffer']
         content = self.json['content']
 
-        buffer = model.IRCBufferModel.get(id=buffer_id)
-        interface = self.interfaces[buffer.server_id]
+        if content[0] == '/':
+            logger.debug('Slash line: %s', content)
+            self.dispatcher.dispatch(buffer_id, content)
+        else:
+            buffer = model.IRCBufferModel.get(id=buffer_id)
+            interface = self.interfaces[buffer.server_id]
 
-        interface.server_handler.send_message(buffer.name, content)
+            interface.server_handler.send_message(buffer.name, content)
 
         # javascript needs this to write something, otherwise it doesn't
         # handle it as a success.
