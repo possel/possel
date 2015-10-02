@@ -63,6 +63,10 @@ class LinesHandler(BaseAPIHandler):
 
         interface.server_handler.send_message(buffer.name, content)
 
+        # javascript needs this to write something, otherwise it doesn't
+        # handle it as a success.
+        self.write({})
+
 
 class BufferGetHandler(BaseAPIHandler):
     def get(self, buffer_id):
