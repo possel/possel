@@ -5,17 +5,20 @@ IRC library stuff has been moved out into the pircel project, we'll just be a us
 
 Other libraries we'll use:
 
-* Tornado: async loop for cooperative multitasking, web server for fetch API, *maybe* sockets and websockets support for
-           push stuff.
-* probably ZeroMQ: Decent comms library with tornado interop built into its python bindings; libraries in so many
-                   languages.
+* Tornado: async loop for cooperative multitasking, web server for fetch API, websockets for push api.
+* websockets, not zmq: If you ignore the existence of WAMP and autobahn then websockets are a surprisingly pleasant
+                       bidirectional message layer. Tornado has built in server support and client libraries exist for
+                       all sorts of languages now.
 
 Check the issue tracker for outstanding tasks, current general state is:
 
 IRC parsing and modelling in pircel is in a vaguely usable state, needs to start growing with use now, feel free to
 write tests or generally poke it until it dies then fix what was broken.
 
-Web API and real time notification in possel is unstarted, I'm (KitB) about to start work on it.
+Web API and real time notification in possel is also in a somewhat usable state, again needs testing.
+
+There's a web client for testing, it's not very good but it's useful for testing the API and serves as an example of how
+I expect possel clients to work (i.e. put as much work as possible in the server).
 
 Until it's an issue we're not giving much thought to performance; in particular pircel is fairly synchronous so we'll
 spend a lot of time blocking on database bits and bobs. I *do* expect this will need to be addressed.
