@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from pircel import model
 import tornado.websocket
@@ -39,10 +38,3 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
     def on_close(self):
         for signal, handler in self.signals.items():
             model.signal_factory(signal).disconnect(handler)
-
-
-def main():
-    pass
-
-if __name__ == '__main__':
-    main()
