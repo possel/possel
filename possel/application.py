@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import logging
 import os
 
 from pircel import model, tornado_adapter
@@ -59,6 +60,15 @@ def get_arg_parser():
 def main():
     args = get_arg_parser().parse_args()
 
+    # setup logging
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    log_date_format = "%Y-%m-%d %H:%M:%S"
+    log_format = "%(asctime)s\t%(levelname)s\t%(module)s:%(funcName)s:%(lineno)d\t%(message)s"
+    logging.basicConfig(level=log_level, format=log_format, datefmt=log_date_format)
+    logging.captureWarnings(True)
+
+    settings['debug'] = args.debug
+
     db = db_url.connect(args.database)
     model.database.initialize(db)
     model.database.connect()
@@ -69,8 +79,6 @@ def main():
                for interface_id, interface in interfaces.items()}
     for client in clients.values():
         client.connect()
-
-    settings['debug'] = args.debug
 
     application = tornado.web.Application(get_routes(interfaces), **settings)
     application.listen(args.port, args.bind_address)
