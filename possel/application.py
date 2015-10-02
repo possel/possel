@@ -21,7 +21,7 @@ def get_routes(interfaces):
                         url(r'/buffer', resources.BufferPostHandler),
                         url(r'/server/([0-9+]|all)', resources.ServerGetHandler),
                         url(r'/server', resources.ServerPostHandler),
-                        url(r'/user/([0-9+]|all)', resources.UserGetHandler),
+                        url(r'/user/([0-9]+|all)', resources.UserGetHandler),
                         url(r'/push', push.ResourcePusher, name='push'),
                         ]
     for route in interface_routes:
