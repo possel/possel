@@ -76,6 +76,11 @@ $(function(){
                     new_buffer(buffer_data[0]);
                 });
                 break;
+            case "user":
+                get_user(msg.user).then(function(user_data){
+                    var user = user_data[0];
+                    users[user.id] = user;
+                });
         }
     }
 
