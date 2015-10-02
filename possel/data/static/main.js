@@ -1,29 +1,29 @@
-function get_user(id){
+"use strict";
+
+var possel = {
+  get_users: function(id){
     return $.get("/user/" + id);
-}
-
-function get_buffer(id){
+  },
+  get_buffer: function(id){
     return $.get("/buffer/" + id);
-}
-
-function get_line_by_id(id){
+  },
+  get_line_by_id: function(id){
     return $.get("/line?id=" + id);
-}
-
-function get_last_line(){
+  },
+  get_last_line: function(){
     return $.get("/line?last=true");
-}
-
-function send_line(buffer, content){
+  },
+  send_line: function(buffer, content){
     $.ajax({
       type: 'POST',
       url: '/line',
       data: JSON.stringify({ buffer: buffer,
-              content: content
-            }),
+                             content: content
+                           }),
       contentType: 'application/json'
     });
-}
+  }
+};
 
 $(function(){
     var users = [], buffers = [];
@@ -53,7 +53,11 @@ $(function(){
     var new_buffer = buffer_maker();
 
     function prepopulate_lines(last_line_data, nlines){
-        var last_line = last_line_data[0];
+      if (last_line_data.length == 0) {
+        console.warn("no lines found.");
+        return 0;
+      }
+      var last_line = last_line_data[0];
         $.get("/line?after=" + (last_line.id - nlines)).then(function(lines){
             lines.forEach(function(line){
                 new_line(line);
@@ -66,13 +70,13 @@ $(function(){
         console.log(msg);
         switch(msg.type){
             case "line":
-                get_line_by_id(msg.line).then(function(data) {
+                possel.get_line_by_id(msg.line).then(function(data) {
                     var line = data[0];
                     new_line(line);
                 });
                 break;
             case "buffer":
-                get_buffer(msg.buffer).then(function(buffer_data){
+                possel.get_buffer(msg.buffer).then(function(buffer_data){
                     new_buffer(buffer_data[0]);
                 });
                 break;
@@ -83,13 +87,13 @@ $(function(){
       event.preventDefault();
       var message = $('#message-input').val();
       var buffer_id = $('.buffer.active')[0].id;
-      send_line(buffer_id, message);
+      possel.send_line(buffer_id, message);
       $('#message-input').val('');
     });
 
-    $.when(get_user("all"),
-          get_buffer("all"),
-          get_last_line()
+    $.when(possel.get_users("all"),
+          possel.get_buffer("all"),
+          possel.get_last_line()
          )
         .done(function(user_data, buffer_data, last_line_data){
             user_data[0].forEach(function(user){
