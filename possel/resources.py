@@ -63,6 +63,10 @@ class LinesHandler(BaseAPIHandler):
 
         interface.server_handler.send_message(buffer.name, content)
 
+        # javascript needs this to write something, otherwise it doesn't
+        # handle it as a success.
+        self.write({})
+
 
 class BufferGetHandler(BaseAPIHandler):
     def get(self, buffer_id):
@@ -82,6 +86,8 @@ class BufferPostHandler(BaseAPIHandler):
 
         interface = self.interfaces[server_id]
         interface.server_handler.join(name)
+
+        self.write({})
 
 
 class ServerGetHandler(BaseAPIHandler):
@@ -107,6 +113,8 @@ class ServerPostHandler(BaseAPIHandler):
         interface = model.IRCServerInterface(server)
         tornado_adapter.IRCClient.from_interface(interface).connect()
         self.interfaces[interface.server_model.id] = interface
+
+        self.write({})
 
 
 class UserGetHandler(BaseAPIHandler):
