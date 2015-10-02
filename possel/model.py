@@ -126,8 +126,12 @@ class IRCBufferModel(BaseModel):
 
     This means channels and PMs.
     """
-    name = p.TextField(unique=True)  # either a channel '#channel' or a nick 'nick'
+    name = p.TextField()  # either a channel '#channel' or a nick 'nick'
     server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE')
+
+    class Meta:
+        indexes = ((('name', 'server'), True),
+                   )
 
 
 line_types = [('message', 'Message'),
@@ -165,6 +169,10 @@ class IRCBufferMembershipRelation(BaseModel):
     """ Buffers and Users have a many-to-many relationship, this handles that. """
     buffer = p.ForeignKeyField(IRCBufferModel, related_name='memberships', on_delete='CASCADE')
     user = p.ForeignKeyField(IRCUserModel, related_name='memberships', on_delete='CASCADE')
+
+    class Meta:
+        indexes = ((('buffer', 'user'), True),
+                   )
 
 
 def create_tables():
@@ -212,8 +220,7 @@ def create_buffer(name, server):
 
 def create_membership(buffer, user):
     membership = IRCBufferMembershipRelation.create(buffer=buffer, user=user)
-    server = membership.buffer.server
-    signal_factory(new_membership).send(None, membership=membership, server=server)
+    signal_factory(new_membership).send(None, membership=membership, buffer=buffer, user=user)
     return membership
 
 
@@ -260,6 +267,14 @@ def ensure_buffer(name, server):
     except p.IntegrityError:
         buffer = IRCBufferModel.get(name=name, server=server)
     return buffer
+
+
+def ensure_membership(buffer, user):
+    try:
+        membership = create_membership(buffer, user)
+    except p.IntegrityError:
+        membership = IRCBufferMembershipRelation.get(buffer=buffer, user=user)
+    return membership
 # =========================================================================
 
 
@@ -311,7 +326,7 @@ class IRCServerInterface:
                                username=username,
                                host=host,
                                server=self.server_model)
-            create_membership(buffer, user)
+            ensure_membership(buffer, user)
 
     def _handle_privmsg(self, _, **kwargs):
         who_from = kwargs['prefix']
@@ -332,7 +347,7 @@ class IRCServerInterface:
         buffer = ensure_buffer(name=channel, server=self.server_model)
         for name in names:
             user = self.get_user_by_nick(name)
-            create_membership(user=user, buffer=buffer)
+            ensure_membership(user=user, buffer=buffer)
     # =========================================================================
 
     # =========================================================================
