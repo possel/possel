@@ -14,20 +14,20 @@ from tornado.web import url
 from possel import push, resources, web_client
 
 
-def get_routes(controllers):
-    controller_routes = [url(r'/line', resources.LinesHandler),
-                         url(r'/buffer/([0-9+]|all)', resources.BufferGetHandler),
-                         url(r'/buffer', resources.BufferPostHandler),
-                         url(r'/server/([0-9+]|all)', resources.ServerGetHandler),
-                         url(r'/server', resources.ServerPostHandler),
-                         url(r'/user/([0-9+]|all)', resources.UserGetHandler),
-                         url(r'/push', push.ResourcePusher, name='push'),
-                         ]
-    for route in controller_routes:
-        route.kwargs.update(controllers=controllers)
+def get_routes(interfaces):
+    interface_routes = [url(r'/line', resources.LinesHandler),
+                        url(r'/buffer/([0-9+]|all)', resources.BufferGetHandler),
+                        url(r'/buffer', resources.BufferPostHandler),
+                        url(r'/server/([0-9+]|all)', resources.ServerGetHandler),
+                        url(r'/server', resources.ServerPostHandler),
+                        url(r'/user/([0-9+]|all)', resources.UserGetHandler),
+                        url(r'/push', push.ResourcePusher, name='push'),
+                        ]
+    for route in interface_routes:
+        route.kwargs.update(interfaces=interfaces)
 
     routes = [url(r'/', web_client.WebUIServer, name='index'),
-              ] + controller_routes
+              ] + interface_routes
     return routes
 
 
@@ -64,15 +64,15 @@ def main():
     model.database.connect()
     model.create_tables()
 
-    controllers = model.IRCServerController.get_all()
-    clients = {controller_id: tornado_adapter.IRCClient.from_controller(controller)
-               for controller_id, controller in controllers.items()}
+    interfaces = model.IRCServerInterface.get_all()
+    clients = {interface_id: tornado_adapter.IRCClient.from_interface(interface)
+               for interface_id, interface in interfaces.items()}
     for client in clients.values():
         client.connect()
 
     settings['debug'] = args.debug
 
-    application = tornado.web.Application(get_routes(controllers), **settings)
+    application = tornado.web.Application(get_routes(interfaces), **settings)
     application.listen(args.port, args.bind_address)
 
     tornado.ioloop.IOLoop.current().start()

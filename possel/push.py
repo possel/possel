@@ -8,14 +8,14 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
     def check_origin(self, origin):
         return True
 
-    def send_line_id(self, controller, line):
-        self.write_message({'type': 'line', 'line': line})
+    def send_line_id(self, _, line, server):
+        self.write_message({'type': 'line', 'line': line.id})
 
-    def send_buffer_id(self, controller, buffer):
-        self.write_message({'type': 'buffer', 'buffer': buffer, 'server': controller.server_model.id})
+    def send_buffer_id(self, _, buffer, server):
+        self.write_message({'type': 'buffer', 'buffer': buffer.id, 'server': server.id})
 
-    def initialize(self, controllers):
-        self.controllers = controllers
+    def initialize(self, interfaces):
+        self.interfaces = interfaces
 
     def open(self):
         model.signal_factory(model.new_line).connect(self.send_line_id)

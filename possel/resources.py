@@ -15,11 +15,11 @@ import tornado.web
 
 
 class BaseAPIHandler(tornado.web.RequestHandler):
-    def initialize(self, controllers):
+    def initialize(self, interfaces):
         self.set_header('Content-Type', 'application/json')
         self.set_header('Access-Control-Allow-Origin', '*')
         self.set_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.controllers = controllers
+        self.interfaces = interfaces
 
     def prepare(self):
         if self.request.headers.get('Content-Type', '').startswith('application/json'):
@@ -59,9 +59,9 @@ class LinesHandler(BaseAPIHandler):
         content = self.json['content']
 
         buffer = model.IRCBufferModel.get(id=buffer_id)
-        controller = self.controllers[buffer.server_id]
+        interface = self.interfaces[buffer.server_id]
 
-        controller.server_handler.send_message(buffer.name, content)
+        interface.server_handler.send_message(buffer.name, content)
 
 
 class BufferGetHandler(BaseAPIHandler):
@@ -80,8 +80,8 @@ class BufferPostHandler(BaseAPIHandler):
 
         assert name[0] in '#&+!', 'Not given a channel as buffer'
 
-        controller = self.controllers[server_id]
-        controller.server_handler.join(name)
+        interface = self.interfaces[server_id]
+        interface.server_handler.join(name)
 
 
 class ServerGetHandler(BaseAPIHandler):
@@ -96,13 +96,16 @@ class ServerGetHandler(BaseAPIHandler):
 class ServerPostHandler(BaseAPIHandler):
     def post(self):
         j = self.json
-        user = model.UserDetails.create(nick=j['nick'], realname=j['realname'], username=j['username'])
 
-        server = model.IRCServerModel.create(host=j['host'], port=j['port'], secure=j['secure'], user=user)
+        server = model.create_server(host=j['host'],
+                                     port=j['port'],
+                                     secure=j['secure'],
+                                     nick=j['nick'],
+                                     realname=j['realname'],
+                                     username=j['username'])
 
-        controller = model.IRCServerController(server)
-        tornado_adapter.IRCClient.from_controller(controller).connect()
-        self.controllers[server.id] = controller
+        interface = model.IRCServerInterface(server)
+        tornado_adapter.IRCClient.from_interface(interface).connect()
 
 
 class UserGetHandler(BaseAPIHandler):
