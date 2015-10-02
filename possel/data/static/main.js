@@ -64,16 +64,19 @@ $(function(){
     var buffer = buffers[line.buffer], user = users[line.user];
     $("#" + buffer.id).append(
       util.node("div",
-                [moment(line.timestamp).format("hh:mm:ss"),
+                [util.node("span",
+                           moment(line.timestamp).format("hh:mm:ss"), {
+                             class: "date column"
+                           }),
                  util.node("span", user.nick, {
                    class: "nick column mid-column"
                  })
                  , util.node("span", line.content, {
                    class: "message column mid-column"
                  })],
-                       {
-                         class: "buffer-line"
-                       }));
+                {
+                  class: "buffer-line"
+                }));
   }
 
   function buffer_maker(){
@@ -84,17 +87,17 @@ $(function(){
       first = false;
       $("#bufferlist").append(
         util.node("li",
-                         util.node("a",
-                                          buffer.name, {
-                                            href: "#" + buffer.id,
-                                            role: "tab",
-                                            "data-toggle": "tab",
-                                            "aria-controls": buffer.id
-                                          }), {
-                           role: "presentation",
-                           class: active_class
-                         }
-                        )
+                  util.node("a",
+                            buffer.name, {
+                              href: "#" + buffer.id,
+                              role: "tab",
+                              "data-toggle": "tab",
+                              "aria-controls": buffer.id
+                            }), {
+                              role: "presentation",
+                              class: active_class
+                            }
+                 )
       );
       $("#message-pane").append(
         util.node("div", null, {
@@ -136,7 +139,7 @@ $(function(){
       });
       break;
     case "user":
-      get_user(msg.user).then(function(user_data){
+      possel.get_user(msg.user).then(function(user_data){
         var user = user_data[0];
         users[user.id] = user;
       });
