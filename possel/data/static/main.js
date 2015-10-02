@@ -64,12 +64,13 @@ $(function(){
     var buffer = buffers[line.buffer], user = users[line.user];
     $("#" + buffer.id).append(
       util.node("div",
-                       [util.node("span", user.nick, {
-                         class: "nick column mid-column"
-                       })
-                       , util.node("span", line.content, {
-                         class: "message column mid-column"
-                       })],
+                [moment(line.timestamp).format("hh:mm:ss"),
+                 util.node("span", user.nick, {
+                   class: "nick column mid-column"
+                 })
+                 , util.node("span", line.content, {
+                   class: "message column mid-column"
+                 })],
                        {
                          class: "buffer-line"
                        }));
