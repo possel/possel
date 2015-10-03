@@ -115,9 +115,11 @@ class IRCUserModel(UserDetails):
     """
     host = p.TextField(null=True)  # where they're coming from
     server = p.ForeignKeyField(IRCServerModel, related_name='users', on_delete='CASCADE')
+    current = p.BooleanField()  # are they connected?
 
     class Meta:
-        indexes = ((('server', 'nick'), True),
+        indexes = ((('server', 'nick'), False),
+                   (('server', 'nick', 'current'), True),
                    )
 
 
@@ -203,13 +205,14 @@ deleted_membership = 'deleted_membership'
 #
 # Because we really don't need a controller class for this
 # =========================================================================
-def create_user(nick, server, realname=None, username=None, host=None):
-    user = IRCUserModel.create(nick=nick, realname=realname, username=username, host=host, server=server)
+def create_user(nick, server, current=True, realname=None, username=None, host=None):
+    user = IRCUserModel.create(nick=nick, realname=realname, username=username, host=host, server=server,
+                               current=current)
     signal_factory(new_user).send(None, user=user, server=user.server)
     return user
 
 
-def update_user(old_nick, server, nick=None, realname=None, username=None, host=None):
+def update_user(old_nick, server, nick=None, realname=None, username=None, host=None, current=None):
     user = IRCUserModel.get(nick=old_nick, server=server)
 
     if nick is not None:
@@ -223,6 +226,9 @@ def update_user(old_nick, server, nick=None, realname=None, username=None, host=
 
     if host is not None:
         user.host = host
+
+    if current is not None:
+        user.current = current
 
     user.save()
     signal_factory(new_user).send(None, user=user, server=user.server)
@@ -396,7 +402,23 @@ class IRCServerInterface:
     def _handle_nick(self, _, **kwargs):
         old_nick, username, host = protocol.parse_identity(kwargs['prefix'])
         new_nick, *other_args = kwargs['args']  # shouldn't be any other args
-        user = update_user(old_nick, self.server_model, nick=new_nick)
+
+        logger.debug('%s, %s', old_nick, self.server_handler.identity.nick)
+
+        if new_nick == self.server_handler.identity.nick:
+            # The protocol handler will update its own state as it uses the database model without saving it for storage
+            # We save it because we're the database bit.
+            # We want to wait until confirmation that the nick change happens from the server.
+            self.server_handler.identity.save()
+
+        try:
+            user = update_user(old_nick, self.server_model, nick=new_nick)
+        except p.IntegrityError:
+            # The *IRC Server* has told us this nick change is occurring, we can safely assume no one is currently using
+            # the nick
+            update_user(new_nick, self.server_model, current=False)
+            user = update_user(old_nick, self.server_model, nick=new_nick)
+
         for relation in user.memberships:
             buffer = relation.buffer
             create_line(buffer=buffer,
