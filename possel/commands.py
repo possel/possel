@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 commands = {'join',
             'query',
             'me',
+            'nick',
             }
 
 
@@ -44,6 +45,11 @@ class Dispatcher:
         line = rest[0]
         interface = self.interfaces[buffer.server.id]
         interface.server_handler.send_message(buffer.name, '\1ACTION {}\1'.format(line))
+
+    def nick(self, buffer, rest):
+        new_nick = rest[0]
+        interface = self.interfaces[buffer.server.id]
+        interface.server_handler.change_nick(new_nick)
 
 
 def main():
