@@ -1,11 +1,24 @@
 # -*- coding: utf-8 -*-
+import logging
+
 from pircel import model
-import tornado.websocket
+from tornado import websocket
 
 
-class ResourcePusher(tornado.websocket.WebSocketHandler):
+logger = logging.getLogger(__name__)
+
+
+class ResourcePusher(websocket.WebSocketHandler):
     def check_origin(self, origin):
         return True
+
+    def send_last_line_id(self):
+        try:
+            line = model.IRCLineModel.select().order_by(-model.IRCLineModel.id).limit(1)[0]
+        except IndexError:
+            self.write_message({'type': 'last_line', 'line': -1})
+        else:
+            self.write_message({'type': 'last_line', 'line': line.id})
 
     def send_line_id(self, _, line, server):
         self.write_message({'type': 'line', 'line': line.id})
@@ -38,6 +51,7 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
     def open(self):
         for signal, handler in self.signals.items():
             model.signal_factory(signal).connect(handler)
+        self.send_last_line_id()
 
     def on_close(self):
         for signal, handler in self.signals.items():
