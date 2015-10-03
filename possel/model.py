@@ -206,6 +206,26 @@ def create_user(nick, server, realname=None, username=None, host=None):
     return user
 
 
+def update_user(old_nick, server, nick=None, realname=None, username=None, host=None):
+    user = IRCUserModel.get(nick=old_nick, server=server)
+
+    if nick is not None:
+        user.nick = nick
+
+    if realname is not None:
+        user.realname = realname
+
+    if username is not None:
+        user.username = username
+
+    if host is not None:
+        user.host = host
+
+    out = user.save()
+    signal_factory(new_user).send(None, user=user, server=user.server)
+    return out
+
+
 def create_line(buffer, content, kind, user=None):
     line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user)
     server = line.buffer.server
@@ -287,6 +307,7 @@ class IRCServerInterface:
         self.protocol_callbacks = {'privmsg': self._handle_privmsg,
                                    'join': self._handle_join,
                                    'rpl_namreply': self._handle_rpl_namreply,
+                                   'nick': self._handle_nick
                                    }
 
     @property
@@ -355,6 +376,11 @@ class IRCServerInterface:
         for name in names:
             user = self.get_user_by_nick(name)
             ensure_membership(user=user, buffer=buffer)
+
+    def _handle_nick(self, _, **kwargs):
+        old_nick, username, host = protocol.parse_identity(kwargs['prefix'])
+        new_nick, *other_args = kwargs['args']  # shouldn't be any other args
+        update_user(old_nick, self.server_model, nick=new_nick)
     # =========================================================================
 
     # =========================================================================
