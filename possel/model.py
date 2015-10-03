@@ -138,7 +138,8 @@ line_types = [('message', 'Message'),
               ('notice', 'Notice'),
               ('join', 'Join'),
               ('part', 'Part'),
-              ('quit', 'quit'),
+              ('quit', 'Quit'),
+              ('action', 'Action'),
               ('other', 'Other'),
               ]  # TODO: Consider more/less line types? Line types as display definitions?
 
@@ -339,7 +340,13 @@ class IRCServerInterface:
             buffer = ensure_buffer(name=to, server=self.server_model)
 
         user = ensure_user(nick=nick, server=self.server_model)
-        create_line(buffer=buffer, user=user, kind='message', content=msg)
+        action_prefix = '\1ACTION '
+        kind = 'message'
+        if msg.startswith(action_prefix):
+            msg = msg[len(action_prefix):-1]
+            kind = 'action'
+
+        create_line(buffer=buffer, user=user, kind=kind, content=msg)
 
     def _handle_rpl_namreply(self, _, **kwargs):
         to, channel_privacy, channel, space_sep_names = kwargs['args']
