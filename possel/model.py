@@ -139,6 +139,7 @@ line_types = [('message', 'Message'),
               ('join', 'Join'),
               ('part', 'Part'),
               ('quit', 'Quit'),
+              ('nick', 'Nick Change'),
               ('action', 'Action'),
               ('other', 'Other'),
               ]  # TODO: Consider more/less line types? Line types as display definitions?
@@ -193,6 +194,7 @@ new_line = 'new_line'
 new_buffer = 'new_buffer'
 new_server = 'new_server'
 new_membership = 'new_membership'
+deleted_membership = 'deleted_membership'
 
 
 # =========================================================================
@@ -222,13 +224,15 @@ def update_user(old_nick, server, nick=None, realname=None, username=None, host=
     if host is not None:
         user.host = host
 
-    out = user.save()
+    user.save()
     signal_factory(new_user).send(None, user=user, server=user.server)
-    return out
+    return user
 
 
-def create_line(buffer, content, kind, user=None):
-    if user is not None:
+def create_line(buffer, content, kind, user=None, nick=None):
+    if nick is not None:
+        line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user, nick=nick)
+    elif user is not None:
         line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user, nick=user.nick)
     else:
         line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user)
@@ -247,6 +251,12 @@ def create_membership(buffer, user):
     membership = IRCBufferMembershipRelation.create(buffer=buffer, user=user)
     signal_factory(new_membership).send(None, membership=membership, buffer=buffer, user=user)
     return membership
+
+
+def delete_membership(user, buffer):
+    membership = IRCBufferMembershipRelation.get(user=user, buffer=buffer)
+    membership.delete_instance()
+    signal_factory(deleted_membership).send(None, membership=membership)
 
 
 def create_server(host, port, secure, nick, realname, username):
@@ -310,6 +320,7 @@ class IRCServerInterface:
         self._server_handler = None
         self.protocol_callbacks = {'privmsg': self._handle_privmsg,
                                    'join': self._handle_join,
+                                   'part': self._handle_part,
                                    'rpl_namreply': self._handle_rpl_namreply,
                                    'nick': self._handle_nick
                                    }
@@ -353,6 +364,7 @@ class IRCServerInterface:
                                host=host,
                                server=self.server_model)
             ensure_membership(buffer, user)
+            create_line(buffer=buffer, user=user, kind='join', content='has joined the channel')
 
     def _handle_privmsg(self, _, **kwargs):
         who_from = kwargs['prefix']
@@ -384,7 +396,24 @@ class IRCServerInterface:
     def _handle_nick(self, _, **kwargs):
         old_nick, username, host = protocol.parse_identity(kwargs['prefix'])
         new_nick, *other_args = kwargs['args']  # shouldn't be any other args
-        update_user(old_nick, self.server_model, nick=new_nick)
+        user = update_user(old_nick, self.server_model, nick=new_nick)
+        for relation in user.memberships:
+            buffer = relation.buffer
+            create_line(buffer=buffer,
+                        user=user,
+                        nick=old_nick,
+                        kind='nick',
+                        content='is now known as {}'.format(new_nick))
+
+    def _handle_part(self, _, **kwargs):
+        nick, username, host = protocol.parse_identity(kwargs['prefix'])
+        channel, *other_args = kwargs['args']
+
+        user = IRCUserModel.get(nick=nick, server=self.server_model)
+        buffer = IRCBufferModel.get(name=channel, server=self.server_model)
+
+        delete_membership(user, buffer)
+        create_line(buffer=buffer, user=user, kind='part', content='has left the channel')
     # =========================================================================
 
     # =========================================================================
