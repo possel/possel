@@ -155,6 +155,7 @@ class IRCLineModel(BaseModel):
     # Who and when
     timestamp = p.DateTimeField(default=datetime.datetime.now)
     user = p.ForeignKeyField(IRCUserModel, null=True, on_delete='CASCADE')  # Can have lines with no User displayed
+    nick = p.TextField(null=True)  # We store the nick of the user at the time of the message
 
     # What
     kind = p.CharField(max_length=20, default='message', choices=line_types)
@@ -227,7 +228,10 @@ def update_user(old_nick, server, nick=None, realname=None, username=None, host=
 
 
 def create_line(buffer, content, kind, user=None):
-    line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user)
+    if user is not None:
+        line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user, nick=user.nick)
+    else:
+        line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user)
     server = line.buffer.server
     signal_factory(new_line).send(None, line=line, server=server)
     return line
