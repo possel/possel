@@ -16,6 +16,19 @@ commands = {'join',
             }
 
 
+def parse_args(parser, parsee, buffer):
+    try:
+        args = parser.parse_args(parsee[0].split())
+    except (SystemExit, IndexError):
+        model.create_line(buffer=buffer, content='=' * 80, kind='other', nick='-*-')
+        for line in parser.format_help().splitlines():
+            model.create_line(buffer=buffer, content=line, kind='other', nick='-*-')
+        model.create_line(buffer=buffer, content='=' * 80, kind='other', nick='-*-')
+        return False
+    else:
+        return args
+
+
 class Dispatcher:
     def __init__(self, interfaces):
         self.interfaces = interfaces
@@ -31,17 +44,27 @@ class Dispatcher:
             getattr(self, command)(buffer, rest)
 
     def join(self, buffer, rest):
-        words = rest[0].split()
-        channel = words[0]
-        password = words[1] if len(words) > 1 else None
+        parser = argparse.ArgumentParser(prog='join')
+        parser.add_argument('channel', help='The channel to join')
+        parser.add_argument('password', default=None, nargs='?',
+                            help='Optional password for the channel')
+
+        args = parse_args(parser, rest, buffer)
+        if not args:
+            return
 
         interface = self.interfaces[buffer.server.id]
-        interface.server_handler.join(channel, password)
+        interface.server_handler.join(args.channel, args.password)
 
     def query(self, buffer, rest):
-        words = rest[0].split()
-        who = words[0]
-        model.ensure_buffer(who, buffer.server)
+        parser = argparse.ArgumentParser(prog='query')
+        parser.add_argument('who', help='Who to open a query buffer with')
+
+        args = parse_args(parser, rest, buffer)
+        if not args:
+            return
+
+        model.ensure_buffer(args.who, buffer.server)
 
     def me(self, buffer, rest):
         line = rest[0]
@@ -68,11 +91,8 @@ class Dispatcher:
                             help='The username to use on this server')
         parser.add_argument('host', help='The server to connect to')
 
-        try:
-            args = parser.parse_args(rest[0].split())
-        except (SystemExit, IndexError):
-            for line in parser.format_help().splitlines():
-                model.create_line(buffer=buffer, content=line, kind='other', nick='-*-')
+        args = parse_args(parser, rest, buffer)
+        if not args:
             return
 
         server = model.create_server(host=args.host,
