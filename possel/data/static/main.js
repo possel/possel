@@ -1,7 +1,7 @@
 "use strict";
 
 var possel = {
-  get_users: function(id){
+  get_user: function(id){
     return $.get("/user/" + id);
   },
   events: {
@@ -68,7 +68,7 @@ $(function(){
                            moment(line.timestamp).format("hh:mm:ss"), {
                              class: "date column"
                            }),
-                 util.node("span", user.nick, {
+                 util.node("span", line.nick, {
                    class: "nick column mid-column"
                  })
                  , util.node("span", line.content, {
@@ -147,7 +147,7 @@ $(function(){
   }
 
   possel.events.submit_event('#message-input-form');
-  $.when(possel.get_users("all"),
+  $.when(possel.get_user("all"),
          possel.get_buffer("all"),
          possel.get_last_line()
         )
