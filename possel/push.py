@@ -22,6 +22,9 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
     def send_membership(self, _, membership, user, buffer):
         self.write_message({'type': 'membership', 'membership': membership.id, 'user': user.id, 'buffer': buffer.id})
 
+    def send_deleted_membership(self, _, membership):
+        self.write_message({'type': 'delete_membership', 'membership': membership.to_dict()})
+
     def initialize(self, interfaces):
         self.interfaces = interfaces
         self.signals = {model.new_line: self.send_line_id,
@@ -29,6 +32,7 @@ class ResourcePusher(tornado.websocket.WebSocketHandler):
                         model.new_user: self.send_user_id,
                         model.new_server: self.send_server_id,
                         model.new_membership: self.send_membership,
+                        model.delete_membership: self.send_deleted_membership,
                         }
 
     def open(self):
