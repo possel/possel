@@ -123,6 +123,11 @@ class IRCUserModel(UserDetails):
                    )
 
 
+buffer_types = [('normal', 'Standard Buffer'),
+                ('system', 'System buffer for a server'),
+                ]
+
+
 class IRCBufferModel(BaseModel):
     """ Models anything that will store a bunch of messages and maybe have some people in it.
 
@@ -130,6 +135,7 @@ class IRCBufferModel(BaseModel):
     """
     name = p.TextField()  # either a channel '#channel' or a nick 'nick'
     server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE')
+    kind = p.CharField(max_length=20, default='normal', choices=buffer_types)
 
     class Meta:
         indexes = ((('name', 'server'), True),
@@ -247,8 +253,11 @@ def create_line(buffer, content, kind, user=None, nick=None):
     return line
 
 
-def create_buffer(name, server):
-    buffer = IRCBufferModel.create(name=name, server=server)
+def create_buffer(name, server, kind=None):
+    if kind is not None:
+        buffer = IRCBufferModel.create(name=name, server=server, kind=kind)
+    else:
+        buffer = IRCBufferModel.create(name=name, server=server)
     signal_factory(new_buffer).send(None, buffer=buffer, server=buffer.server)
     return buffer
 
@@ -302,9 +311,9 @@ def ensure_user(nick, server, realname=None, username=None, host=None):
     return user
 
 
-def ensure_buffer(name, server):
+def ensure_buffer(name, server, kind=None):
     try:
-        buffer = create_buffer(name=name, server=server)
+        buffer = create_buffer(name=name, server=server, kind=kind)
     except p.IntegrityError:
         buffer = IRCBufferModel.get(name=name, server=server)
     return buffer
@@ -328,7 +337,9 @@ class IRCServerInterface:
                                    'join': self._handle_join,
                                    'part': self._handle_part,
                                    'rpl_namreply': self._handle_rpl_namreply,
-                                   'nick': self._handle_nick
+                                   'nick': self._handle_nick,
+                                   'rpl_welcome': self._handle_rpl_welcome,
+                                   'rpl_motd': self._handle_rpl_motd,
                                    }
 
     @property
@@ -436,6 +447,14 @@ class IRCServerInterface:
 
         delete_membership(user, buffer)
         create_line(buffer=buffer, user=user, kind='part', content='has left the channel')
+
+    def _handle_rpl_welcome(self, _, **kwargs):
+        # Maybe put channel autojoin in here?
+        self.system_buffer = ensure_buffer(name=self.server_model.host, server=self.server_model, kind='system')
+
+    def _handle_rpl_motd(self, _, **kwargs):
+        _, line, *other_args = kwargs['args']
+        create_line(buffer=self.system_buffer, nick='-*-', kind='other', content=line)
     # =========================================================================
 
     # =========================================================================
