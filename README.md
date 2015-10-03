@@ -6,7 +6,7 @@ Simple steps, assuming you're in a folder with a checkout of both pircel and pos
 
     virtualenv -p $(which python3) possel.env
     . possel.env/bin/activate
-    pip install -e pircel
+    pip install -e pircel[bot]
     pip install -e possel
     possel --port 8080 --debug
 
