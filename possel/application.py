@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import argparse
 import logging
 import os
+import socket
+import ssl
 
+from OpenSSL import crypto
 from pircel import model, tornado_adapter
 
 from playhouse import db_url
@@ -33,6 +37,33 @@ def get_routes(interfaces):
     return routes
 
 
+def generate_cert():
+        # create a key pair
+        key = crypto.PKey()
+        key.generate_key(crypto.TYPE_RSA, 1024)
+
+        # create a self-signed cert
+        cert = crypto.X509()
+        cert.get_subject().CN = socket.gethostname()
+        cert.set_serial_number(1)
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
+        cert.set_issuer(cert.get_subject())
+        cert.set_pubkey(key)
+        cert.sign(key, 'sha1')
+
+        cert_string = crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
+        key_string = crypto.dump_privatekey(crypto.FILETYPE_PEM, key)
+
+        return cert_string, key_string
+
+
+def get_ssl_context(args):
+    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_ctx.load_cert_chain(args.certificate, args.certificate.replace('crt', 'key'))
+    return ssl_ctx
+
+
 def get_relative_path(path):
     """ Gets the path of a file under the current directory """
     file_directory = os.path.dirname(os.path.realpath(__file__))
@@ -43,6 +74,10 @@ settings = {'template_path': get_relative_path('data/templates'),
             'cookie_secret': 'butts',
             'login_url': '/session',
             }
+
+
+def get_etc_file(filename):
+    return os.path.join('/etc/possel', filename)
 
 
 def get_arg_parser():
@@ -57,6 +92,10 @@ def get_arg_parser():
                             help='Address possel server will listen on (e.g. 0.0.0.0 for IPv4)')
     arg_parser.add_argument('-D', '--debug', action='store_true',
                             help='Turn on debug logging and show exceptions in the browser')
+    arg_parser.add_argument('-c', '--certificate', default=get_etc_file('cert.pem'),
+                            help='The X.509 certificate to present to clients')
+    arg_parser.add_argument('-s', '--secure', action='store_true',
+                            help='Enable SSL on the web server')
     return arg_parser
 
 
@@ -86,8 +125,10 @@ def main():
     for client in clients.values():
         client.connect()
 
+    ssl_ctx = get_ssl_context(args) if args.secure else None
+
     application = tornado.web.Application(get_routes(interfaces), **settings)
-    application.listen(args.port, args.bind_address)
+    application.listen(args.port, args.bind_address, ssl_options=ssl_ctx)
 
     tornado.ioloop.IOLoop.current().start()
 
