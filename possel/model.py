@@ -134,7 +134,7 @@ class IRCBufferModel(BaseModel):
     This means channels and PMs.
     """
     name = p.TextField()  # either a channel '#channel' or a nick 'nick'
-    server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE')
+    server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE', null=True)
     kind = p.CharField(max_length=20, default='normal', choices=buffer_types)
 
     class Meta:
@@ -186,7 +186,7 @@ class IRCBufferMembershipRelation(BaseModel):
                    )
 
 
-def create_tables():
+def initialize():
     database.create_tables([UserDetails,
                             IRCServerModel,
                             IRCUserModel,
@@ -194,6 +194,12 @@ def create_tables():
                             IRCLineModel,
                             IRCBufferMembershipRelation,
                             ], safe=True)
+    try:
+        logger.info('Getting')
+        IRCBufferModel.get(name='System Buffer', kind='system')
+    except p.DoesNotExist:
+        logger.info('Creating')
+        IRCBufferModel.create(name='System Buffer', server=None, kind='system')
 
 
 # Callback signal definitions
