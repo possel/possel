@@ -5,11 +5,19 @@ from pircel import model
 from tornado import websocket
 import tornado.web
 
+from possel import auth
+
 
 logger = logging.getLogger(__name__)
 
 
 class ResourcePusher(websocket.WebSocketHandler):
+    def get_current_user(self):
+        token = self.get_secure_cookie('token')
+        if token is None:
+            return None
+        return auth.get_user_by_token(token)
+
     @tornado.web.asynchronous
     def get(self, *args, **kwargs):
         if not self.get_current_user():
