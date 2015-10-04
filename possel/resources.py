@@ -54,6 +54,11 @@ class SessionHandler(BaseAPIHandler):
             self.set_secure_cookie('token', token)
             self.write({})
 
+    @tornado.web.authenticated
+    def get(self):
+        # Used to verify tokens
+        self.write({})
+
 
 class LinesHandler(BaseAPIHandler):
     def initialize(self, *args, **kwargs):

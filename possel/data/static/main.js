@@ -37,14 +37,19 @@ var possel = {
   },
   login: function(username, password){
     var data = JSON.stringify({username: username, password: password});
-    console.log(data);
     return $.ajax({
       type: 'POST',
       url: '/session',
       data: data,
       contentType: 'application/json'
     });
-  }
+  },
+  verify_token: function(){
+    return $.ajax({
+      type: 'GET',
+      url: '/session',
+    });
+  },
 };
 
 var util = {
@@ -168,6 +173,7 @@ $(function(){
   }
 
   function init(){
+    console.log('Initializing');
     possel.events.submit_event('#message-input-form');
     $.when(possel.get_user("all"),
         possel.get_buffer("all"),
@@ -193,13 +199,17 @@ $(function(){
       });
   }
 
-  if(Cookies.get('token')){
-    init()
-  }else{
+  function do_login(){
     $('#login-modal').modal('show');
     $('#login-submit').on('click', function(event){
         var username = $('#login-username').val(), password = $('#login-password').val();
         possel.login(username, password).done(init);
     });
+  }
+
+  if(Cookies.get('token')){
+    possel.verify_token().done(init).fail(do_login);
+  }else{
+    do_login();
   }
 });
