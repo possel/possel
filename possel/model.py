@@ -136,6 +136,7 @@ class IRCBufferModel(BaseModel):
     name = p.TextField()  # either a channel '#channel' or a nick 'nick'
     server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE', null=True)
     kind = p.CharField(max_length=20, default='normal', choices=buffer_types)
+    current = p.BooleanField()  # Are we in it?
 
     class Meta:
         indexes = ((('name', 'server'), True),
@@ -199,7 +200,7 @@ def initialize():
         IRCBufferModel.get(name='System Buffer', kind='system')
     except p.DoesNotExist:
         logger.info('Creating')
-        IRCBufferModel.create(name='System Buffer', server=None, kind='system')
+        create_buffer(name='System Buffer', server=None, kind='system')
 
 
 # Callback signal definitions
@@ -261,9 +262,9 @@ def create_line(buffer, content, kind, user=None, nick=None):
 
 def create_buffer(name, server, kind=None):
     if kind is not None:
-        buffer = IRCBufferModel.create(name=name, server=server, kind=kind)
+        buffer = IRCBufferModel.create(name=name, server=server, current=True, kind=kind)
     else:
-        buffer = IRCBufferModel.create(name=name, server=server)
+        buffer = IRCBufferModel.create(name=name, server=server, current=True)
     signal_factory(new_buffer).send(None, buffer=buffer, server=buffer.server)
     return buffer
 
@@ -382,14 +383,15 @@ class IRCServerInterface:
         buffer = ensure_buffer(channel, self.server_model)
 
         if nick == self._user.nick:  # *We* are joining a channel
-            pass
-        else:  # Someone is joining a channel we're already in
-            user = ensure_user(nick=nick,
-                               username=username,
-                               host=host,
-                               server=self.server_model)
-            ensure_membership(buffer, user)
-            create_line(buffer=buffer, user=user, kind='join', content='has joined the channel')
+            buffer.current = True
+            buffer.save()
+
+        user = ensure_user(nick=nick,
+                           username=username,
+                           host=host,
+                           server=self.server_model)
+        ensure_membership(buffer, user)
+        create_line(buffer=buffer, user=user, kind='join', content='has joined the channel')
 
     def _handle_notice(self, _, **kwargs):
         who_from = kwargs['prefix']
@@ -492,6 +494,10 @@ class IRCServerInterface:
 
         user = IRCUserModel.get(nick=nick, server=self.server_model)
         buffer = IRCBufferModel.get(name=channel, server=self.server_model)
+
+        if nick == self._user.nick:
+            buffer.current = False
+            buffer.save()
 
         delete_membership(user, buffer)
         create_line(buffer=buffer, user=user, kind='part', content='has left the channel')
