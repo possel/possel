@@ -34,10 +34,13 @@ class BaseAPIHandler(tornado.web.RequestHandler):
         return [self.get_body_argument(name) for name in names]
 
     def get_current_user(self):
-        token = self.get_secure_cookie('token')
-        if token is None:
+        token_string = self.get_secure_cookie('token')
+        if token_string is None:
             return None
-        return auth.get_user_by_token(token)
+        user = auth.get_user_by_token(token_string)
+        if user is None:
+            self.clear_cookie('token')
+        return user
 
 
 class SessionHandler(BaseAPIHandler):
