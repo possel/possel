@@ -56,6 +56,7 @@ var possel = {
 
 var PosselTemplate = {
   templates: {},
+  orange: '#C9952E',
   load: function(url){
     var that = this;
     return $.get(url, function(html, textStatus, jqXhr){
@@ -81,17 +82,46 @@ $(function(){
   }
 
   function new_line(line){
-    var buffer = buffers[line.buffer], user = users[line.user];
+    var buffer = buffers[line.buffer], user = users[line.user], use_user, line_element;
+    use_user = user;
     if(user == null){
-      user = {
-        color: '#FA4'
+      use_user = {
+        color: PosselTemplate.orange,
       }
+    }
+    switch(line.kind){
+      case 'action':
+      case 'join':
+      case 'quit':
+      case 'part':
+        use_user = {
+          color: PosselTemplate.orange,
+        };
+        line.content = line.nick + ' ' + line.content;
+        line.nick = '-*-';
+        break;
     }
     $("#" + buffer.id).append(PosselTemplate.templates.line({
       line: line,
-      user: user,
+      user: use_user,
       timestamp: moment.unix(line.timestamp).format('hh:mm:ss'),
     }));
+
+    // Do some colouring
+    line_element = $('#line-' + line.id);
+    switch(line.kind){
+      case 'action':
+        line_element.attr('style', 'color: ' + user.color + ';');
+        break;
+      case 'notice':
+        line_element.attr('style', 'color: ' + PosselTemplate.orange + ';');
+        break;
+      case 'join':
+      case 'part':
+      case 'quit':
+        line_element.attr('style', 'color: gray;');
+        break;
+    }
     scroll_to_bottom($('#message-pane'));
   }
 
