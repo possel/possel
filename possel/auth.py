@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 
+import cryptography.exceptions
 from cryptography.hazmat import backends
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf import pbkdf2
@@ -35,19 +36,37 @@ def create_tables():
     model.database.create_tables([UserModel, TokenModel], safe=True)
 
 
-def hash_password(salt, password):
-    if not isinstance(salt, bytes):
-        salt = salt.encode()
-    if not isinstance(password, bytes):
-        password = password.encode()
-
+def get_kdf(salt):
     kdf = pbkdf2.PBKDF2HMAC(algorithm=hashes.SHA224,
                             length=32,
                             salt=salt,
                             iterations=100000,
                             backend=backends.default_backend(),
                             )
+    return kdf
+
+
+def hash_password(salt, password):
+    if not isinstance(salt, bytes):
+        salt = salt.encode()
+    if not isinstance(password, bytes):
+        password = password.encode()
+
+    kdf = get_kdf(salt)
     return base64.urlsafe_b64encode(kdf.derive(password)).decode()
+
+
+def verify_password(salt, password, expected_hash):
+    if not isinstance(salt, bytes):
+        salt = salt.encode()
+    if not isinstance(password, bytes):
+        password = password.encode()
+    if not isinstance(expected_hash, bytes):
+        expected_hash = expected_hash.encode()
+    expected_hash = base64.urlsafe_b64decode(expected_hash)
+
+    kdf = get_kdf(salt)
+    kdf.verify(password, expected_hash)
 
 
 def set_password(user, password, save=True):
@@ -67,11 +86,17 @@ def create_user(username, password):
 
 
 def check_password(username, password):
-    user = UserModel.get(username=username)
-    hash = hash_password(user.salt, password)
-    if user.password == hash:
+    try:
+        user = UserModel.get(username=username)
+    except p.DoesNotExist:
+        return None
+
+    try:
+        verify_password(user.salt, password, user.password)
+    except cryptography.exceptions.InvalidKey:
+        return None
+    else:
         return user
-    return None
 
 
 def cleanup_tokens():
