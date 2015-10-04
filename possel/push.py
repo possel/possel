@@ -3,12 +3,21 @@ import logging
 
 from pircel import model
 from tornado import websocket
+import tornado.web
 
 
 logger = logging.getLogger(__name__)
 
 
 class ResourcePusher(websocket.WebSocketHandler):
+    @tornado.web.asynchronous
+    def get(self, *args, **kwargs):
+        if not self.get_current_user():
+            self.set_status(401)
+            self.finish('Unauthorized.')
+            return
+        super(ResourcePusher, self).get(*args, **kwargs)
+
     def check_origin(self, origin):
         return True
 

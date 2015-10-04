@@ -9,6 +9,7 @@ import possel
 install_requires = [
     'pircel',
     'tornado>=4.2.1',
+    'cryptography>=0.2.1',
 ]
 
 classifiers = [

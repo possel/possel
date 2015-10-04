@@ -34,6 +34,16 @@ var possel = {
                            }),
       contentType: 'application/json'
     });
+  },
+  login: function(username, password){
+    var data = JSON.stringify({username: username, password: password});
+    console.log(data);
+    return $.ajax({
+      type: 'POST',
+      url: '/session',
+      data: data,
+      contentType: 'application/json'
+    });
   }
 };
 
@@ -125,7 +135,7 @@ $(function(){
 
   function handle_push(event){
     var msg = JSON.parse(event.data);
-    console.log(msg);
+    console.log(event.data);
     switch(msg.type){
     case "line":
       possel.get_line_by_id(msg.line).then(function(data) {
@@ -146,26 +156,39 @@ $(function(){
     }
   }
 
-  possel.events.submit_event('#message-input-form');
-  $.when(possel.get_user("all"),
-         possel.get_buffer("all"),
-         possel.get_last_line()
+  function init(){
+    possel.events.submit_event('#message-input-form');
+    $.when(possel.get_user("all"),
+        possel.get_buffer("all"),
+        possel.get_last_line()
         )
-    .done(function(user_data, buffer_data, last_line_data){
-      user_data[0].forEach(function(user){
-        users[user.id] = user;
+      .done(function(user_data, buffer_data, last_line_data){
+        console.log('done preparing');
+        user_data[0].forEach(function(user){
+          users[user.id] = user;
+        });
+        buffer_data[0].forEach(function(buffer) {
+          new_buffer(buffer);
+        });
+        var ws = new ReconnectingWebSocket(ws_url);
+        ws.onopen = function() {
+          console.log("connected");
+        };
+        ws.onclose = function() {
+          console.log("disconnected");
+        };
+        ws.onmessage = handle_push;
+        prepopulate_lines(last_line_data[0], 30);
       });
-      buffer_data[0].forEach(function(buffer) {
-        new_buffer(buffer);
-      });
-      var ws = new ReconnectingWebSocket(ws_url);
-      ws.onopen = function() {
-        console.log("connected");
-      };
-      ws.onclose = function() {
-        console.log("disconnected");
-      };
-      ws.onmessage = handle_push;
-      prepopulate_lines(last_line_data[0], 30);
+  }
+
+  if(Cookies.get('token')){
+    init()
+  }else{
+    $('#login-modal').modal('show');
+    $('#login-submit').on('click', function(event){
+        var username = $('#login-username').val(), password = $('#login-password').val();
+        possel.login(username, password).done(init);
     });
+  }
 });

@@ -12,11 +12,12 @@ import tornado.ioloop
 import tornado.web
 from tornado.web import url
 
-from possel import push, resources, web_client
+from possel import auth, push, resources, web_client
 
 
 def get_routes(interfaces):
     interface_routes = [url(r'/line', resources.LinesHandler),
+                        url(r'/session', resources.SessionHandler, name='session'),
                         url(r'/buffer/([0-9+]|all)', resources.BufferGetHandler),
                         url(r'/buffer', resources.BufferPostHandler),
                         url(r'/server/([0-9+]|all)', resources.ServerGetHandler),
@@ -39,6 +40,8 @@ def get_relative_path(path):
 
 settings = {'template_path': get_relative_path('data/templates'),
             'static_path': get_relative_path('data/static'),
+            'cookie_secret': 'butts',
+            'login_url': '/session',
             }
 
 
@@ -73,6 +76,7 @@ def main():
     model.database.initialize(db)
     model.database.connect()
     model.create_tables()
+    auth.create_tables()
 
     interfaces = model.IRCServerInterface.get_all()
     clients = {interface_id: tornado_adapter.IRCClient.from_interface(interface)
