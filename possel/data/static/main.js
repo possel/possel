@@ -1,6 +1,8 @@
 "use strict";
 
 var possel = {
+  users: [],
+  buffers: [],
   get_user: function(id){
     return $.get("/user/" + id);
   },
@@ -52,24 +54,17 @@ var possel = {
   },
 };
 
-var util = {
-  node: function(elem, val, attrs) {
-    var element = $("<" + elem + ">");
-    if (val instanceof Array) {
-      for(var i in val) {
-        element.append(val[i]);
-      }
-    } else {
-      element.html(val);
-    }
-    if (attrs !== undefined) {
-      var keys = Object.keys(attrs);
-      for(var a in keys) {
-        element.attr(keys[a], attrs[keys[a]]);
-      }
-    }
-    return element;
-  }
+var PosselTemplate = {
+  templates: {},
+  load: function(url){
+    var that = this;
+    return $.get(url, function(html, textStatus, jqXhr){
+      var obj = $('<div/>').html(html).contents().filter('div');
+      obj.each(function(index, template){
+        that.templates[template.id] = Handlebars.compile(template.innerHTML);
+      });
+    });
+  },
 }
 
 $(function(){
@@ -92,70 +87,32 @@ $(function(){
         color: '#FA4'
       }
     }
-    $("#" + buffer.id).append(
-      util.node("div",
-                [util.node("span",
-                           moment.unix(line.timestamp).format("hh:mm:ss"), {
-                             class: "date column"
-                           }),
-                 util.node("span", line.nick, {
-                   class: "nick column mid-column",
-                   style: "color: " + user.color + ";"
-                 })
-                 , util.node("span", line.content, {
-                   class: "message column mid-column"
-                 })],
-                {
-                  class: "buffer-line buffer-line-" + line.kind
-                }));
+    $("#" + buffer.id).append(PosselTemplate.templates.line({
+      line: line,
+      user: user,
+      timestamp: moment.unix(line.timestamp).format('hh:mm:ss'),
+    }));
     scroll_to_bottom($('#message-pane'));
   }
 
   function new_buffer(buffer){
-      var buffer_link, parent_node;
-      console.log(buffer);
+      var buffer_link, nav_item = PosselTemplate.templates.nav_item;
       buffers[buffer.id] = buffer;
       switch(buffer.kind){
         case "system":
-          parent_node = $('#bufferlist');
-          parent_node.append(
-              util.node('li',
-                util.node('a', buffer.name, {
-                  href: '#' + buffer.id,
-                  role: 'tab',
-                  'data-toggle': 'tab',
-                  'aria-controls': buffer.id,
-                }), {
-                  role: 'presentation',
-                  id: 'server-buffer-link-' + (buffer.server?buffer.server:'root'),
-                  'class': 'nav-buffer-system',
-                }
-              ));
+          $('#bufferlist').append(nav_item({
+            buffer: buffer,
+            system: true,
+          }));
           break;
         case "normal":
-          parent_node = $('#server-buffer-link-' + buffer.server)
-          parent_node.after(
-            util.node("li",
-                      util.node("a",
-                                buffer.name, {
-                                  href: "#" + buffer.id,
-                                  role: "tab",
-                                  "data-toggle": "tab",
-                                  "aria-controls": buffer.id
-                                }), {
-                                  role: "presentation",
-                                  'class': 'nav-buffer-normal',
-                                }
-                     )
-          );
+          $('#server-buffer-link-' + buffer.server).after(nav_item({
+            buffer: buffer,
+            system: false,
+          }));
           break;
       }
-      $("#message-pane").append(
-        util.node("div", null, {
-          id: buffer.id,
-          class: "buffer tab-pane",
-          role: "tabpanel"
-        }));
+      $("#message-pane").append(PosselTemplate.templates.buffer_pane({buffer: buffer}));
       buffer_link = $('#bufferlist a[href="#' + buffer.id + '"]');
       buffer_link.on('shown.bs.tab', function(event){
         scroll_to_bottom($('#message-pane'));
@@ -178,7 +135,6 @@ $(function(){
 
   function handle_push(event){
     var msg = JSON.parse(event.data);
-    console.log(event.data);
     switch(msg.type){
     case "line":
       possel.get_line_by_id(msg.line).then(function(data) {
@@ -203,7 +159,8 @@ $(function(){
     possel.events.submit_event('#message-input-form');
     $.when(possel.get_user("all"),
         possel.get_buffer("all"),
-        possel.get_last_line()
+        possel.get_last_line(),
+        PosselTemplate.load('/static/templates.html')
         )
       .done(function(user_data, buffer_data, last_line_data){
         console.log('done preparing');
