@@ -54,8 +54,9 @@ class SessionHandler(BaseAPIHandler):
             self.set_secure_cookie('token', token)
             self.write({})
 
-    @tornado.web.authenticated
     def get(self):
+        if not self.get_current_user():
+            raise tornado.web.HTTPError(401)
         # Used to verify tokens
         self.write({})
 
