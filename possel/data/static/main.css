@@ -38,10 +38,12 @@ html, body{
 
 .date {
   white-space: nowrap;
+  color: grey;
 }
 
 .nick {
   white-space: nowrap;
+  text-align: right;
 }
 
 .nav-buffer-normal{

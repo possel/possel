@@ -80,8 +80,18 @@ $(function(){
     element.scrollTop(element.prop('scrollHeight'));
   }
 
+  function new_user(user){
+    users[user.id] = user;
+    user.color = Please.make_color();
+  }
+
   function new_line(line){
     var buffer = buffers[line.buffer], user = users[line.user];
+    if(user == null){
+      user = {
+        color: '#FA4'
+      }
+    }
     $("#" + buffer.id).append(
       util.node("div",
                 [util.node("span",
@@ -89,13 +99,14 @@ $(function(){
                              class: "date column"
                            }),
                  util.node("span", line.nick, {
-                   class: "nick column mid-column"
+                   class: "nick column mid-column",
+                   style: "color: " + user.color + ";"
                  })
                  , util.node("span", line.content, {
                    class: "message column mid-column"
                  })],
                 {
-                  class: "buffer-line"
+                  class: "buffer-line buffer-line-" + line.kind
                 }));
     scroll_to_bottom($('#message-pane'));
   }
@@ -182,8 +193,7 @@ $(function(){
       break;
     case "user":
       possel.get_user(msg.user).then(function(user_data){
-        var user = user_data[0];
-        users[user.id] = user;
+        new_user(user_data[0]);
       });
     }
   }
@@ -198,7 +208,7 @@ $(function(){
       .done(function(user_data, buffer_data, last_line_data){
         console.log('done preparing');
         user_data[0].forEach(function(user){
-          users[user.id] = user;
+          new_user(user);
         });
         buffer_data[0].forEach(function(buffer) {
           new_buffer(buffer);
