@@ -162,7 +162,7 @@ class IRCLineModel(BaseModel):
     buffer = p.ForeignKeyField(IRCBufferModel, related_name='lines', on_delete='CASCADE')
 
     # Who and when
-    timestamp = p.DateTimeField(default=datetime.datetime.now)
+    timestamp = p.DateTimeField(default=datetime.datetime.utcnow)
     user = p.ForeignKeyField(IRCUserModel, null=True, on_delete='CASCADE')  # Can have lines with no User displayed
     nick = p.TextField(null=True)  # We store the nick of the user at the time of the message
 
