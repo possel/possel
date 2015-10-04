@@ -100,30 +100,49 @@ $(function(){
     scroll_to_bottom($('#message-pane'));
   }
 
-  function buffer_maker(){
-    var first = true;
-    var inner_func = function(buffer){
+  function new_buffer(buffer){
+      var buffer_link, parent_node;
+      console.log(buffer);
       buffers[buffer.id] = buffer;
-      var active_class = first?' active':'', buffer_link;
-      first = false;
-      $("#bufferlist").append(
-        util.node("li",
-                  util.node("a",
-                            buffer.name, {
-                              href: "#" + buffer.id,
-                              role: "tab",
-                              "data-toggle": "tab",
-                              "aria-controls": buffer.id
-                            }), {
-                              role: "presentation",
-                              class: active_class
-                            }
-                 )
-      );
+      switch(buffer.kind){
+        case "system":
+          parent_node = $('#bufferlist');
+          parent_node.append(
+              util.node('li',
+                util.node('a', buffer.name, {
+                  href: '#' + buffer.id,
+                  role: 'tab',
+                  'data-toggle': 'tab',
+                  'aria-controls': buffer.id,
+                }), {
+                  role: 'presentation',
+                  id: 'server-buffer-link-' + (buffer.server?buffer.server:'root'),
+                  'class': 'nav-buffer-system',
+                }
+              ));
+          break;
+        case "normal":
+          parent_node = $('#server-buffer-link-' + buffer.server)
+          parent_node.after(
+            util.node("li",
+                      util.node("a",
+                                buffer.name, {
+                                  href: "#" + buffer.id,
+                                  role: "tab",
+                                  "data-toggle": "tab",
+                                  "aria-controls": buffer.id
+                                }), {
+                                  role: "presentation",
+                                  'class': 'nav-buffer-normal',
+                                }
+                     )
+          );
+          break;
+      }
       $("#message-pane").append(
         util.node("div", null, {
           id: buffer.id,
-          class: "buffer tab-pane " + active_class,
+          class: "buffer tab-pane",
           role: "tabpanel"
         }));
       buffer_link = $('#bufferlist a[href="#' + buffer.id + '"]');
@@ -131,10 +150,7 @@ $(function(){
         scroll_to_bottom($('#message-pane'));
       });
       buffer_link.tab('show');
-    }
-    return inner_func;
   }
-  var new_buffer = buffer_maker();
 
   function prepopulate_lines(last_line_data, nlines){
     if (last_line_data.length == 0) {

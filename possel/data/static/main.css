@@ -43,3 +43,7 @@ html, body{
 .nick {
   white-space: nowrap;
 }
+
+.nav-buffer-normal{
+  padding-left: 1em;
+}
