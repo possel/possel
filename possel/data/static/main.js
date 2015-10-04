@@ -85,7 +85,7 @@ $(function(){
     $("#" + buffer.id).append(
       util.node("div",
                 [util.node("span",
-                           moment(line.timestamp).format("hh:mm:ss"), {
+                           moment.unix(line.timestamp).format("hh:mm:ss"), {
                              class: "date column"
                            }),
                  util.node("span", line.nick, {
