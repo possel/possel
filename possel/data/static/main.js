@@ -70,6 +70,11 @@ var util = {
 $(function(){
   var users = [], buffers = [];
 
+
+  function scroll_to_bottom(element){
+    element.scrollTop(element.prop('scrollHeight'));
+  }
+
   function new_line(line){
     var buffer = buffers[line.buffer], user = users[line.user];
     $("#" + buffer.id).append(
@@ -87,13 +92,14 @@ $(function(){
                 {
                   class: "buffer-line"
                 }));
+    scroll_to_bottom($('#message-pane'));
   }
 
   function buffer_maker(){
     var first = true;
     var inner_func = function(buffer){
       buffers[buffer.id] = buffer;
-      var active_class = first?' active':'';
+      var active_class = first?' active':'', buffer_link;
       first = false;
       $("#bufferlist").append(
         util.node("li",
@@ -115,6 +121,11 @@ $(function(){
           class: "buffer tab-pane " + active_class,
           role: "tabpanel"
         }));
+      buffer_link = $('#bufferlist a[href="#' + buffer.id + '"]');
+      buffer_link.on('shown.bs.tab', function(event){
+        scroll_to_bottom($('#message-pane'));
+      });
+      buffer_link.tab('show');
     }
     return inner_func;
   }
@@ -178,7 +189,7 @@ $(function(){
           console.log("disconnected");
         };
         ws.onmessage = handle_push;
-        prepopulate_lines(last_line_data[0], 30);
+        prepopulate_lines(last_line_data[0], 3000);
       });
   }
 
