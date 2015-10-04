@@ -122,6 +122,7 @@ $(function(){
         line_element.attr('style', 'color: gray;');
         break;
     }
+    line_element.linkify({target: '_blank'});
     scroll_to_bottom($('#message-pane'));
   }
 
