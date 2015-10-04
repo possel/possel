@@ -75,7 +75,7 @@ def main():
     db = db_url.connect(args.database)
     model.database.initialize(db)
     model.database.connect()
-    model.create_tables()
+    model.initialize()
     auth.create_tables()
 
     interfaces = model.IRCServerInterface.get_all()

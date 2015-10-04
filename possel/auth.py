@@ -158,7 +158,7 @@ def main():
 
     db = db_url.connect(args.database)
     model.database.initialize(db)
-    model.create_tables()
+    model.initialize()
     create_tables()
 
     try:
