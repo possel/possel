@@ -22,9 +22,9 @@ from possel import auth, push, resources, web_client
 def get_routes(interfaces):
     interface_routes = [url(r'/line', resources.LinesHandler),
                         url(r'/session', resources.SessionHandler, name='session'),
-                        url(r'/buffer/([0-9+]|all)', resources.BufferGetHandler),
+                        url(r'/buffer/([0-9]+|all)', resources.BufferGetHandler),
                         url(r'/buffer', resources.BufferPostHandler),
-                        url(r'/server/([0-9+]|all)', resources.ServerGetHandler),
+                        url(r'/server/([0-9]+|all)', resources.ServerGetHandler),
                         url(r'/server', resources.ServerPostHandler),
                         url(r'/user/([0-9]+|all)', resources.UserGetHandler),
                         url(r'/push', push.ResourcePusher, name='push'),
