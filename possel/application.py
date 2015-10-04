@@ -70,6 +70,8 @@ def main():
     logging.basicConfig(level=log_level, format=log_format, datefmt=log_date_format)
     logging.captureWarnings(True)
 
+    logging.getLogger('peewee').setLevel(logging.WARN)
+
     settings['debug'] = args.debug
 
     db = db_url.connect(args.database)
