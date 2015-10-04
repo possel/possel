@@ -337,9 +337,11 @@ def ensure_membership(buffer, user):
 class IRCServerInterface:
     def __init__(self, server_model):
         self.server_model = server_model
+        self.system_buffer = ensure_buffer(name=self.server_model.host, server=self.server_model, kind='system')
         self._user = server_model.user
         self._server_handler = None
         self.protocol_callbacks = {'privmsg': self._handle_privmsg,
+                                   'notice': self._handle_notice,
                                    'join': self._handle_join,
                                    'part': self._handle_part,
                                    'rpl_namreply': self._handle_rpl_namreply,
@@ -388,6 +390,46 @@ class IRCServerInterface:
                                server=self.server_model)
             ensure_membership(buffer, user)
             create_line(buffer=buffer, user=user, kind='join', content='has joined the channel')
+
+    def _handle_notice(self, _, **kwargs):
+        who_from = kwargs['prefix']
+        to, msg = kwargs['args']
+
+        try:
+            nick, username, host = protocol.parse_identity(who_from)
+        except ValueError:
+            # It's a server notice
+            self._handle_server_notice(msg)
+            return
+        else:
+            user = ensure_user(nick=nick, username=username, host=host, server=self.server_model)
+
+        if to == self._user.nick:
+            # We may have to do more parsing ¬_¬
+            if msg.startswith('[') and msg[1] in '#&+!':
+                # Might be a private channel notice
+                try:
+                    _, rest = msg.split('[', maxsplit=1)
+                    channel, message = rest.split(']', maxsplit=1)
+                except ValueError:
+                    # It's not a channel notice
+                    buffer = ensure_buffer(name=nick, server=self.server_model)
+                else:
+                    # It's a channel notice
+                    msg = message.strip()
+                    buffer = ensure_buffer(name=channel, server=self.server_model)
+            else:
+                buffer = ensure_buffer(name=nick, server=self.server_model)
+
+        else:
+            # It's a public channel notice
+            buffer = ensure_buffer(name=to, server=self.server_model)
+
+        create_line(buffer=buffer, user=user, kind='notice', content=msg)
+
+    def _handle_server_notice(self, msg):
+        buffer = self.system_buffer
+        create_line(buffer=buffer, kind='notice', nick='-*-', content=msg)
 
     def _handle_privmsg(self, _, **kwargs):
         who_from = kwargs['prefix']
@@ -456,7 +498,7 @@ class IRCServerInterface:
 
     def _handle_rpl_welcome(self, _, **kwargs):
         # Maybe put channel autojoin in here?
-        self.system_buffer = ensure_buffer(name=self.server_model.host, server=self.server_model, kind='system')
+        pass
 
     def _handle_rpl_motd(self, _, **kwargs):
         _, line, *other_args = kwargs['args']
