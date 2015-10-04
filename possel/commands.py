@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 commands = {'join',
+            'part',
             'query',
             'me',
             'nick',
@@ -55,9 +56,12 @@ help_parser.add_argument('command', help='The command to display help for', choi
 
 
 join_parser = CommandParser(prog='join', description='Join a new channel')
-join_parser.add_argument('channel', help='The channel to join')
+join_parser.add_argument('channel', help='The channel to join', default=None, nargs='?')
 join_parser.add_argument('password', default=None, nargs='?',
                          help='Optional password for the channel')
+
+part_parser = CommandParser(prog='part', description='Leave a channel')
+part_parser.add_argument('channel', help='The channel to leave', default=None, nargs='?')
 
 
 query_parser = CommandParser(prog='query', description='Start a private conversation')
@@ -107,8 +111,17 @@ class Dispatcher:
 
     @join_parser.decorate
     def join(self, args):
+        if args.channel is None:
+            args.channel = args.buffer.name
         interface = self.interfaces[args.buffer.server.id]
         interface.server_handler.join(args.channel, args.password)
+
+    @part_parser.decorate
+    def part(self, args):
+        if args.channel is None:
+            args.channel = args.buffer.name
+        interface = self.interfaces[args.buffer.server.id]
+        interface.server_handler.part(args.channel)
 
     @query_parser.decorate
     def query(self, args):

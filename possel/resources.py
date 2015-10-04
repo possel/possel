@@ -96,6 +96,9 @@ class LinesHandler(BaseAPIHandler):
         buffer_id = self.json['buffer']
         content = self.json['content']
 
+        if not content:
+            raise tornado.web.HTTPError(400)
+
         if content[0] == '/':
             logger.debug('Slash line: %s', content)
             self.dispatcher.dispatch(buffer_id, content)
@@ -103,7 +106,8 @@ class LinesHandler(BaseAPIHandler):
             buffer = model.IRCBufferModel.get(id=buffer_id)
             interface = self.interfaces[buffer.server_id]
 
-            interface.server_handler.send_message(buffer.name, content)
+            if buffer.current:
+                interface.server_handler.send_message(buffer.name, content)
 
         # javascript needs this to write something, otherwise it doesn't
         # handle it as a success.
