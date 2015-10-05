@@ -30,16 +30,19 @@
   </head>
   <body>
     <div class="container-fluid" id="outer-container">
-      <div class="row">
-        <div class="col-md-2">
+      <div class="row" id="row-1">
+        <div class="col-md-2 cell">
           <ul id="bufferlist" class="nav nav-pills nav-stacked" role="tablist"></ul>
         </div>
-        <div class="col-md-8 tab-content" id="message-pane"></div>
-        <div class="col-md-2"></div>
+        <div class="col-md-8 cell">
+          <div class="tab-content" id="message-pane">
+          </div>
+        </div>
+        <div class="col-md-2 cell"></div>
       </div>
-      <div class="row">
-        <div class="col-md-2"></div>
-        <div class="col-md-10">
+      <div class="row" id="row-2">
+        <div class="col-md-2 cell" id="bottom-left"></div>
+        <div class="col-md-10 cell">
           <form role="form" id="message-input-form">
             <div class="input-group input-group-lg">
               <input type="text" class="form-control" id="message-input">

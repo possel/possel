@@ -9,15 +9,30 @@ html, body{
 #outer-container{
   height: 100%;
   min-height: 100%;
+  display: table;
+  height: 100vh;
+  min-height: 100vh;
 }
 
 #message-pane{
   overflow-y: auto;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
-#outer-container .row:first-child{
-  height: 90%;
+.row{
+  display: table-row;
+  height: 100%;
+  min-height: 100%;
+}
+
+.cell{
+  height: 100%;
+  min-height: 100%;
+  display: table-cell;
 }
 
 .column {
@@ -48,4 +63,8 @@ html, body{
 
 .nav-buffer-normal{
   padding-left: 1em;
+}
+
+#bottom-left{
+  min-height: 1vh; /* don't even ask */
 }
