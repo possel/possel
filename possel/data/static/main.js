@@ -143,6 +143,7 @@ $(function(){
           }));
           break;
       }
+      console.log('asdf');
       $("#message-pane").append(PosselTemplate.templates.buffer_pane({buffer: buffer}));
       buffer_link = $('#bufferlist a[href="#' + buffer.id + '"]');
       buffer_link.on('shown.bs.tab', function(event){
@@ -188,6 +189,9 @@ $(function(){
   function init(){
     console.log('Initializing');
     possel.events.submit_event('#message-input-form');
+    $(document).keypress(function(e){
+      $('#message-input').focus();
+    });
     $.when(possel.get_user("all"),
         possel.get_buffer("all"),
         possel.get_last_line(),
