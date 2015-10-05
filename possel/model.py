@@ -345,6 +345,7 @@ class IRCServerInterface:
                                    'notice': self._handle_notice,
                                    'join': self._handle_join,
                                    'part': self._handle_part,
+                                   'quit': self._handle_quit,
                                    'rpl_namreply': self._handle_rpl_namreply,
                                    'nick': self._handle_nick,
                                    'rpl_welcome': self._handle_rpl_welcome,
@@ -501,6 +502,20 @@ class IRCServerInterface:
 
         delete_membership(user, buffer)
         create_line(buffer=buffer, user=user, kind='part', content='has left the channel')
+
+    def _handle_quit(self, _, **kwargs):
+        nick, username, host = protocol.parse_identity(kwargs['prefix'])
+        *other_args, reason = kwargs['args']
+
+        user = IRCUserModel.get(nick=nick, server=self.server_model)
+        for relation in user.memberships:
+            buffer = relation.buffer
+            if nick == self._user.nick:
+                buffer.current = False
+                buffer.save()
+
+            delete_membership(user, buffer)
+            create_line(buffer=buffer, user=user, kind='quit', content='has quit ({})'.format(reason))
 
     def _handle_rpl_welcome(self, _, **kwargs):
         # Maybe put channel autojoin in here?
