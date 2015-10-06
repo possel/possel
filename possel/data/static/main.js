@@ -143,7 +143,6 @@ $(function(){
           }));
           break;
       }
-      console.log('asdf');
       $("#message-pane").append(PosselTemplate.templates.buffer_pane({buffer: buffer}));
       buffer_link = $('#bufferlist a[href="#' + buffer.id + '"]');
       buffer_link.on('shown.bs.tab', function(event){
