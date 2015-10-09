@@ -96,20 +96,29 @@ def get_arg_parser():
                             help='The X.509 certificate to present to clients')
     arg_parser.add_argument('-s', '--secure', action='store_true',
                             help='Enable SSL on the web server')
+    arg_parser.add_argument('--log-irc', action='store_true',
+                            help='Log lines from IRC verbatim in addition to any other logging')
+    arg_parser.add_argument('--log-database', action='store_true',
+                            help='Log all queries sent to the database. Warning: *high* volume')
     return arg_parser
 
 
 def main():
     args = get_arg_parser().parse_args()
 
-    # setup logging
+    # <setup logging>
     log_level = logging.DEBUG if args.debug else logging.INFO
     log_date_format = "%Y-%m-%d %H:%M:%S"
     log_format = "%(asctime)s\t%(levelname)s\t%(module)s:%(funcName)s:%(lineno)d\t%(message)s"
     logging.basicConfig(level=log_level, format=log_format, datefmt=log_date_format)
     logging.captureWarnings(True)
 
-    logging.getLogger('peewee').setLevel(logging.WARN)
+    database_log_level = logging.DEBUG if args.log_database else logging.INFO
+    logging.getLogger('peewee').setLevel(database_log_level)
+
+    verbatim_log_level = logging.DEBUG if args.log_irc else logging.INFO
+    logging.getLogger('pircel.protocol.verbatim').setLevel(verbatim_log_level)
+    # </setup logging>
 
     settings['debug'] = args.debug
 
