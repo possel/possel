@@ -38,7 +38,7 @@ class ResourcePusher(websocket.WebSocketHandler):
             self.write_message({'type': 'last_line', 'line': line.id})
 
     def send_line_id(self, _, line, server):
-        self.write_message({'type': 'line', 'line': line.id})
+        self.write_message({'type': 'line', 'line': line.id, 'buffer': line.buffer.id})
 
     def send_buffer_id(self, _, buffer, server):
         self.write_message({'type': 'buffer', 'buffer': buffer.id, 'server': server.id})
