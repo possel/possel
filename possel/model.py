@@ -119,7 +119,7 @@ class IRCUserModel(UserDetails):
 
     class Meta:
         indexes = ((('server', 'nick'), False),
-                   (('server', 'nick', 'current'), True),
+                   (('server', 'nick', 'current'), False),
                    )
 
 
@@ -218,15 +218,32 @@ deleted_membership = 'deleted_membership'
 #
 # Because we really don't need a controller class for this
 # =========================================================================
+def _ensure_no_current_user(nick, server, current=True, realname=None, username=None, host=None):
+    """ Raises an integrity error if there already exists a current user with the given details. """
+    if current:
+        try:
+            user = get_user(nick, server, current, realname, username, host)
+        except p.DoesNotExist:
+            pass
+        else:
+            if user.current:
+                raise p.IntegrityError()
+
+
 def create_user(nick, server, current=True, realname=None, username=None, host=None):
+    # First we ensure that we don't already have a current user that matches
+    _ensure_no_current_user(nick, server, current, realname, username, host)
+
+    # Then we actually create a user
     user = IRCUserModel.create(nick=nick, realname=realname, username=username, host=host, server=server,
                                current=current)
     signal_factory(new_user).send(None, user=user, server=user.server)
     return user
 
 
-def update_user(old_nick, server, nick=None, realname=None, username=None, host=None, current=None):
-    user = IRCUserModel.get(nick=old_nick, server=server)
+def update_user(user, nick=None, realname=None, username=None, host=None, current=None):
+    # Ensure no current user exists with the target details
+    _ensure_no_current_user(nick, user.server, current or user.current, realname, username, host)
 
     if nick is not None:
         user.nick = nick
@@ -295,6 +312,17 @@ def create_server(host, port, secure, nick, realname, username):
 #
 # Not calling them "view" because they can modify stuff
 # =========================================================================
+def get_user(nick, server, current=True, realname=None, username=None, host=None):
+    kwargs = {'nick': nick, 'server': server, 'current': current}
+    if realname is not None:
+        kwargs['realname'] = realname
+    if username is not None:
+        kwargs['username'] = username
+    if host is not None:
+        kwargs['host'] = host
+    return IRCUserModel.get(**kwargs)
+
+
 def ensure_user(nick, server, realname=None, username=None, host=None):
     """ Gets a user by (nick, server) and updates the other properties. """
     try:
@@ -473,13 +501,15 @@ class IRCServerInterface:
             # We want to wait until confirmation that the nick change happens from the server.
             self.server_handler.identity.save()
 
+        user = get_user(old_nick, self.server_model)
         try:
-            user = update_user(old_nick, self.server_model, nick=new_nick)
+            user = update_user(user, nick=new_nick)
         except p.IntegrityError:
             # The *IRC Server* has told us this nick change is occurring, we can safely assume no one is currently using
             # the nick
-            update_user(new_nick, self.server_model, current=False)
-            user = update_user(old_nick, self.server_model, nick=new_nick)
+            old_user = get_user(new_nick, self.server_model)
+            update_user(old_user, current=False)  # un-current the user currently using the nick
+            update_user(user, nick=new_nick)  # make the change
 
         for relation in user.memberships:
             buffer = relation.buffer
@@ -493,7 +523,7 @@ class IRCServerInterface:
         nick, username, host = protocol.parse_identity(kwargs['prefix'])
         channel, *other_args = kwargs['args']
 
-        user = IRCUserModel.get(nick=nick, server=self.server_model)
+        user = get_user(nick, self.server_model, current=True)
         buffer = IRCBufferModel.get(name=channel, server=self.server_model)
 
         if nick == self._user.nick:
