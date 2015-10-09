@@ -1,8 +1,11 @@
 <div id="line">
-  <div id='line-{{line.id}}' class="buffer-line buffer-line-{{line.kind}}">
     <span class="date column">{{timestamp}}</span>
     <span class="nick column mid-column" style="color: {{user.color}};">{{line.nick}}</span>
     <span class="message column mid-column">{{line.content}}</span>
+</div>
+
+<div id="prepopulate_line">
+  <div id='line-{{line_id}}' class="buffer-line">
   </div>
 </div>
 

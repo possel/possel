@@ -81,6 +81,10 @@ $(function(){
     user.color = Please.make_color();
   }
 
+  function prepopulate_line_buffer(line_id, buffer_id){
+    $('#' + buffer_id).append(PosselTemplate.templates.prepopulate_line({line_id: line_id}));
+  }
+
   function new_line(line){
     var buffer = buffers[line.buffer], user = users[line.user], use_user, line_element;
     use_user = user;
@@ -101,14 +105,17 @@ $(function(){
         line.nick = '-*-';
         break;
     }
-    $("#" + buffer.id).append(PosselTemplate.templates.line({
+
+    line_element = $('#line-' + line.id);
+    line_element.addClass('buffer-line-' + line.kind);
+
+    line_element.append(PosselTemplate.templates.line({
       line: line,
       user: use_user,
       timestamp: moment.unix(line.timestamp).format('hh:mm:ss'),
     }));
 
     // Do some colouring
-    line_element = $('#line-' + line.id);
     switch(line.kind){
       case 'action':
         line_element.attr('style', 'color: ' + user.color + ';');
@@ -159,6 +166,7 @@ $(function(){
     var last_line = last_line_data[0];
     $.get("/line?after=" + (last_line.id - nlines)).then(function(lines){
       lines.forEach(function(line){
+        prepopulate_line_buffer(line.id, line.buffer);
         new_line(line);
       });
     });
@@ -168,6 +176,7 @@ $(function(){
     var msg = JSON.parse(event.data);
     switch(msg.type){
     case "line":
+      prepopulate_line_buffer(msg.line, msg.buffer);
       possel.get_line_by_id(msg.line).then(function(data) {
         var line = data[0];
         new_line(line);
