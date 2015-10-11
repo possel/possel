@@ -112,7 +112,7 @@ $(function(){
     line_element.append(PosselTemplate.templates.line({
       line: line,
       user: use_user,
-      timestamp: moment.unix(line.timestamp).format('hh:mm:ss'),
+      timestamp: moment.unix(line.timestamp).format('HH:mm:ss'),
     }));
 
     // Do some colouring
