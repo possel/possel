@@ -25,7 +25,7 @@ var possel = {
     return $.get("/line?id=" + id);
   },
   get_last_line: function(){
-    return $.get("/line?last=true");
+    return $.get("/line?last=1");
   },
   send_line: function(buffer, content){
     return $.ajax({

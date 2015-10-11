@@ -81,9 +81,10 @@ class LinesHandler(BaseAPIHandler):
         before = self.get_argument('before', None)
         after = self.get_argument('after', None)
         kind = self.get_argument('kind', None)
-        last = self.get_argument('last', False)
+        last = self.get_argument('last', None)
+        buffer = self.get_argument('buffer', None)
 
-        if not (line_id or before or after or last):
+        if not (line_id or before or after or last or buffer):
             raise tornado.web.HTTPError(403)
 
         lines = model.IRCLineModel.select()
@@ -95,8 +96,14 @@ class LinesHandler(BaseAPIHandler):
             lines = lines.where(model.IRCLineModel.id >= after)
         if kind is not None:
             lines = lines.where(model.IRCLineModel.kind == kind)
-        if last:
-            lines = lines.order_by(-model.IRCLineModel.id).limit(1)
+        if last is not None:
+            try:
+                last = int(last)
+            except ValueError:
+                last = 1
+            lines = lines.order_by(-model.IRCLineModel.id).limit(last)
+        if buffer is not None:
+            lines = lines.where(model.IRCLineModel.buffer == buffer)
 
         self.write(json.dumps([line.to_dict() for line in lines]))
 
