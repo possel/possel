@@ -30,8 +30,12 @@ class BaseAPIHandler(tornado.web.RequestHandler):
     def prepare(self):
         if self.request.headers.get('Content-Type', '').startswith('application/json'):
             self.json = json.loads(self.request.body.decode())
-        insecure_logger.debug('Given token:     %s', self.get_secure_cookie('token'))
-        insecure_logger.debug('Have tokens: %s', [(token.user.id, token.token) for token in auth.TokenModel.select()])
+        token = self.get_secure_cookie('token')
+        insecure_logger.debug('Given token:     %s', token)
+        insecure_logger.debug('Have tokens: %s', [(t.user.id, t.token) for t in auth.TokenModel.select()])
+        if token is not None:
+            insecure_logger.debug('Given token in database: %s',
+                                  token.decode() in {t.token for t in auth.TokenModel.select()})
         user = self.get_current_user()
         insecure_logger.debug('Current user(?): %s', user.username if user else None)
 
