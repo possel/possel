@@ -99,7 +99,11 @@ def get_arg_parser():
     arg_parser.add_argument('--log-irc', action='store_true',
                             help='Log lines from IRC verbatim in addition to any other logging')
     arg_parser.add_argument('--log-database', action='store_true',
-                            help='Log all queries sent to the database. Warning: *high* volume')
+                            help='Log all queries sent to the database.'
+                            'Warning: *high* volume, requires --log-insecure')
+    arg_parser.add_argument('--log-insecure', action='store_true',
+                            help='Allow information in logs that attackers could use to compromise users. '
+                            'WARNING: It\'s called "insecure" for a reason!')
     return arg_parser
 
 
@@ -113,8 +117,11 @@ def main():
     logging.basicConfig(level=log_level, format=log_format, datefmt=log_date_format)
     logging.captureWarnings(True)
 
-    database_log_level = logging.DEBUG if args.log_database else logging.INFO
+    database_log_level = logging.DEBUG if args.log_database and args.log_insecure else logging.INFO
     logging.getLogger('peewee').setLevel(database_log_level)
+
+    insecure_log_level = logging.DEBUG if args.log_insecure else logging.INFO
+    logging.getLogger('insecure').setLevel(insecure_log_level)
 
     verbatim_log_level = logging.DEBUG if args.log_irc else logging.INFO
     logging.getLogger('pircel.protocol.verbatim').setLevel(verbatim_log_level)

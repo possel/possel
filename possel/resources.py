@@ -17,6 +17,7 @@ import tornado.web
 from possel import auth, commands
 
 logger = logging.getLogger(__name__)
+insecure_logger = logging.getLogger('insecure.{}'.format(__name__))
 
 
 class BaseAPIHandler(tornado.web.RequestHandler):
@@ -29,6 +30,8 @@ class BaseAPIHandler(tornado.web.RequestHandler):
     def prepare(self):
         if self.request.headers.get('Content-Type', '').startswith('application/json'):
             self.json = json.loads(self.request.body.decode())
+        insecure_logger.debug('Given token:     %s', self.get_secure_cookie('token'))
+        insecure_logger.debug('Have tokens: %s', [(token.user.id, token.token) for token in auth.TokenModel.select()])
 
     def get_body_argument_tuple(self, names):
         return [self.get_body_argument(name) for name in names]
