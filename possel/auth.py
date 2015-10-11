@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import base64
 import datetime
+import functools
 import logging
 import os
 
@@ -11,6 +12,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf import pbkdf2
 import peewee as p
 from pircel import model
+import tornado.web
 
 
 logger = logging.getLogger(__name__)
@@ -130,6 +132,19 @@ def get_user_by_token(token_string):
         return None
     else:
         return token.user
+
+
+def required(method):
+    """ Works like tornado.web.authenticated except it just returns 401 on failure.
+
+    As opposed to redirecting to a login URL; we're making an API, not a website.
+    """
+    @functools.wraps(method)
+    def inner_method(self, *args, **kwargs):
+        if not self.current_user:
+            raise tornado.web.HTTPError(401)
+        return method(self, *args, **kwargs)
+    return inner_method
 
 
 class LoginFailed(Exception):
