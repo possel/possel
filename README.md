@@ -41,7 +41,12 @@ That last one is the only one you'll need to repeat.
     curl localhost:8080/line?id=1
     curl localhost:8080/line?after=10
     curl localhost:8080/line?before=20
-    curl localhost:8080/line?last=true
+    curl localhost:8080/line?last=10
+    curl localhost:8080/line?buffer=3
+
+    # Combining filters in getting lines
+    curl localhost:8080/line?buffer=3&last=20
+    curl localhost:8080/line?after=10&before=20
 
     # Getting buffers
     curl localhost:8080/buffer/1
@@ -50,6 +55,34 @@ That last one is the only one you'll need to repeat.
     # Getting servers
     curl localhost:8080/server/1
     curl localhost:8080/server/all
+
+## The Websocket
+Real time notifications are achieved with a websocket which you can connect to with the following javascript (you'll
+need to find a websocket client for the language you're working in):
+
+    var ws = new ReconnectingWebSocket(ws_url);
+    ws.onopen = function() {
+      console.log("connected");
+    };
+    ws.onclose = function() {
+      console.log("disconnected");
+    };
+    ws.onmessage = function(event){
+      console.log(JSON.parse(event.data));
+    };
+
+And following are examples of the kinds of messages you can expect from the websocket (you shouldn't send anything to
+it).
+
+    {"line": 1036, "type": "last_line"}  # Sent on connect, indicates the highest line id at that point
+    {"server": 2, "type": "server"}  # We're connected to a new server
+    {"server": 1, "buffer": 4, "type": "buffer"}  # We've joined a buffer
+
+    {"user": 11, "server": 1, "type": "user"}  # A new user has been discovered (cache them please)
+    {"user": 1, "buffer": 4, "membership": 14, "type": "membership"}  # User with id 1 has joined buffer 4
+    {"membership": {"buffer": 3, "id": 17, "user": 11}, "type": "delete_membership"}  # A user has left a channel (should probably standardise this with the join one)
+
+    {"line": 1037, "buffer": 3, "type": "line"}  # a wild line has appeared
 
 ## Discussion
 
