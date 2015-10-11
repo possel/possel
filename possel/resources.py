@@ -32,6 +32,8 @@ class BaseAPIHandler(tornado.web.RequestHandler):
             self.json = json.loads(self.request.body.decode())
         insecure_logger.debug('Given token:     %s', self.get_secure_cookie('token'))
         insecure_logger.debug('Have tokens: %s', [(token.user.id, token.token) for token in auth.TokenModel.select()])
+        user = self.get_current_user()
+        insecure_logger.debug('Current user(?): %s', user.username if user else None)
 
     def get_body_argument_tuple(self, names):
         return [self.get_body_argument(name) for name in names]
