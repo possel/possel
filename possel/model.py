@@ -149,6 +149,7 @@ line_types = [('message', 'Message'),
               ('part', 'Part'),
               ('quit', 'Quit'),
               ('nick', 'Nick Change'),
+              ('topic', 'Topic Change'),
               ('action', 'Action'),
               ('other', 'Other'),
               ]  # TODO: Consider more/less line types? Line types as display definitions?
@@ -363,6 +364,9 @@ def ensure_membership(buffer, user):
 # =========================================================================
 
 
+sysnick = '-*-'
+
+
 class IRCServerInterface:
     def __init__(self, server_model):
         self.server_model = server_model
@@ -378,6 +382,9 @@ class IRCServerInterface:
                                    'nick': self._handle_nick,
                                    'rpl_welcome': self._handle_rpl_welcome,
                                    'rpl_motd': self._handle_rpl_motd,
+                                   'rpl_topic': self._handle_rpl_topic,
+                                   'rpl_topicwhotime': self._handle_rpl_topicwhotime,
+                                   'rpl_notopic': self._handle_rpl_notopic,
                                    }
 
     @property
@@ -460,7 +467,7 @@ class IRCServerInterface:
 
     def _handle_server_notice(self, msg):
         buffer = self.system_buffer
-        create_line(buffer=buffer, kind='notice', nick='-*-', content=msg)
+        create_line(buffer=buffer, kind='notice', nick=sysnick, content=msg)
 
     def _handle_privmsg(self, _, **kwargs):
         who_from = kwargs['prefix']
@@ -553,7 +560,30 @@ class IRCServerInterface:
 
     def _handle_rpl_motd(self, _, **kwargs):
         _, line, *other_args = kwargs['args']
-        create_line(buffer=self.system_buffer, nick='-*-', kind='other', content=line)
+        create_line(buffer=self.system_buffer, nick=sysnick, kind='other', content=line)
+
+    def _handle_topic(self, _, **kwargs):
+        nick, username, host = protocol.parse_identity(kwargs['prefix'])
+        channel, topic = kwargs['args']
+        buffer = ensure_buffer(name=channel, server=self.server_model)
+        create_line(buffer=buffer, nick=sysnick, server=self.server_model,
+                    content='{} changed the topic for {} to: {}'.format(nick, channel, topic))
+
+    def _handle_rpl_topic(self, _, **kwargs):
+        _, channel, topic = kwargs['args']
+        buffer = ensure_buffer(name=channel, server=self.server_model)
+        create_line(buffer=buffer, nick=sysnick, kind='topic',
+                    content='Topic for {}: {}'.format(channel, topic))
+
+    def _handle_rpl_topicwhotime(self, _, **kwargs):
+        _, channel, user, timestamp = kwargs['args']
+        nick, username, host = protocol.parse_identity(user)
+        buffer = ensure_buffer(name=channel, server=self.server_model)
+        create_line(buffer=buffer, nick=sysnick, kind='topic',
+                    content='Topic set by {}'.format(nick))
+
+    def _handle_rpl_notopic(self, _, **kwargs):
+        pass
     # =========================================================================
 
     # =========================================================================
