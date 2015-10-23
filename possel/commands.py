@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import collections
 import logging
 
 from pircel import model, tornado_adapter
@@ -16,6 +17,18 @@ commands = {'join',
             'connect',
             'help',
             }
+
+
+def build_prefix_map(strings):
+    out = collections.defaultdict(list)
+    for string in strings:
+        prefix = ''
+        for char in string:
+            prefix += char
+            out[prefix].append(string)
+    return out
+
+prefix_commands = build_prefix_map(commands)
 
 
 class CommandParser(argparse.ArgumentParser):
@@ -56,7 +69,7 @@ help_parser.add_argument('command', help='The command to display help for', choi
 
 
 join_parser = CommandParser(prog='join', description='Join a new channel')
-join_parser.add_argument('channel', help='The channel to join', default=None, nargs='?')
+join_parser.add_argument('channel', help='The channel to join')
 join_parser.add_argument('password', default=None, nargs='?',
                          help='Optional password for the channel')
 
@@ -99,9 +112,16 @@ class Dispatcher:
         command, *rest = line.split(maxsplit=1)
         command = command.lower()
 
-        if command in commands:
+        if command in prefix_commands:
             buffer = model.IRCBufferModel.get(id=buffer_id)
-            getattr(self, command)(buffer, rest)
+            if len(prefix_commands[command]) == 1:
+                actual_command, = prefix_commands[command]
+                getattr(self, actual_command)(buffer, rest)
+            else:
+                model.create_line(buffer=buffer,
+                                  content='ambiguous command "{}"'.format(command),
+                                  kind='other',
+                                  nick='-*-')
 
     @help_parser.decorate
     def help(self, args):
