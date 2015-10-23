@@ -50,10 +50,18 @@ class ResourcePusher(websocket.WebSocketHandler):
         self.write_message({'type': 'server', 'server': server.id})
 
     def send_membership(self, _, membership, user, buffer):
-        self.write_message({'type': 'membership', 'membership': membership.id, 'user': user.id, 'buffer': buffer.id})
+        self.write_message({'type': 'membership',
+                            'membership': membership.id,
+                            'user': user.id,
+                            'buffer': buffer.id,
+                            })
 
-    def send_deleted_membership(self, _, membership):
-        self.write_message({'type': 'delete_membership', 'membership': membership.to_dict()})
+    def send_deleted_membership(self, _, membership, user, buffer):
+        self.write_message({'type': 'delete_membership',
+                            'membership': membership.id,
+                            'user': user.id,
+                            'buffer': buffer.id,
+                            })
 
     def initialize(self, interfaces):
         self.interfaces = interfaces
