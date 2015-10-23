@@ -296,7 +296,7 @@ def create_membership(buffer, user):
 def delete_membership(user, buffer):
     membership = IRCBufferMembershipRelation.get(user=user, buffer=buffer)
     membership.delete_instance()
-    signal_factory(deleted_membership).send(None, membership=membership)
+    signal_factory(deleted_membership).send(None, membership=membership, buffer=buffer, user=user)
 
 
 def create_server(host, port, secure, nick, realname, username):
