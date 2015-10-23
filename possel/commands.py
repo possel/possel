@@ -114,15 +114,14 @@ class Dispatcher:
 
         if command in prefix_commands:
             buffer = model.IRCBufferModel.get(id=buffer_id)
-            try:
+            if len(prefix_commands[command]) == 1:
                 actual_command, = prefix_commands[command]
-            except ValueError:
+                getattr(self, actual_command)(buffer, rest)
+            else:
                 model.create_line(buffer=buffer,
                                   content='ambiguous command "{}"'.format(command),
                                   kind='other',
                                   nick='-*-')
-                return
-            getattr(self, actual_command)(buffer, rest)
 
     @help_parser.decorate
     def help(self, args):
