@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-pircel.model
+possel.model
 ------------
 
 This module defines an API for storing the state of an IRC server and probably includes some database bits too.
@@ -11,10 +11,12 @@ import datetime
 import logging
 
 import peewee as p
-from playhouse import shortcuts
 
 import pircel
 from pircel import protocol, signals
+
+from playhouse import shortcuts
+
 
 logger = logging.getLogger(__name__)
 signal_factory = signals.namespace('model')
