@@ -90,7 +90,7 @@ me_parser.add_argument('action', help='The thing to do', nargs=argparse.REMAINDE
 
 connect_parser = CommandParser(prog='connect', description='Connect to a new IRC server')
 connect_parser.add_argument('-i', '--insecure', action='store_true',
-                            help='Enable ssl/tls for this server')
+                            help='Disable ssl/tls for this server')
 connect_parser.add_argument('-p', '--port', default=6697,
                             help='The port to connect on')
 connect_parser.add_argument('-n', '--nick', default=None,
