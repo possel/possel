@@ -11,7 +11,7 @@ from possel import model
 logger = logging.getLogger(__name__)
 
 
-commands = {'join',
+COMMANDS = {'join',
             'part',
             'query',
             'me',
@@ -30,7 +30,7 @@ def build_prefix_map(strings):
             out[prefix].append(string)
     return out
 
-prefix_commands = build_prefix_map(commands)
+PREFIX_COMMANDS = build_prefix_map(COMMANDS)
 
 
 class CommandParser(argparse.ArgumentParser):
@@ -67,7 +67,7 @@ class CommandParser(argparse.ArgumentParser):
 
 
 help_parser = CommandParser(prog='help', description='Display help and usage information for commands')
-help_parser.add_argument('command', help='The command to display help for', choices=commands)
+help_parser.add_argument('command', help='The command to display help for', choices=COMMANDS)
 
 
 join_parser = CommandParser(prog='join', description='Join a new channel')
@@ -114,10 +114,10 @@ class Dispatcher:
         command, *rest = line.split(maxsplit=1)
         command = command.lower()
 
-        if command in prefix_commands:
+        if command in PREFIX_COMMANDS:
             buffer = model.IRCBufferModel.get(id=buffer_id)
-            if len(prefix_commands[command]) == 1:
-                actual_command, = prefix_commands[command]
+            if len(PREFIX_COMMANDS[command]) == 1:
+                actual_command, = PREFIX_COMMANDS[command]
                 getattr(self, actual_command)(buffer, rest)
             else:
                 model.create_line(buffer=buffer,
