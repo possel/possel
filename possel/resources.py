@@ -11,10 +11,10 @@ resources.
 import json
 import logging
 
-from pircel import model, tornado_adapter
+from pircel import tornado_adapter
 import tornado.web
 
-from possel import auth, commands
+from possel import auth, commands, model
 
 logger = logging.getLogger(__name__)
 insecure_logger = logging.getLogger('insecure.{}'.format(__name__))
