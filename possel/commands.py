@@ -4,7 +4,9 @@ import argparse
 import collections
 import logging
 
-from pircel import model, tornado_adapter
+from pircel import tornado_adapter
+
+from possel import model
 
 logger = logging.getLogger(__name__)
 

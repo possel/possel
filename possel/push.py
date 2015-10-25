@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import logging
 
-from pircel import model
 from tornado import websocket
 import tornado.web
 
-from possel import auth
+from possel import auth, model
 
 
 logger = logging.getLogger(__name__)
