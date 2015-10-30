@@ -12,7 +12,7 @@ Simple steps, assuming you're in a folder with a checkout of both pircel and pos
     . possel.env/bin/activate
 
     # Must install in this order
-    pip install -e pircel[bot]
+    pip install -e pircel
     pip install -e possel
 
     # Add a user for auth
