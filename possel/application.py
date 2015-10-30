@@ -8,7 +8,7 @@ import socket
 import ssl
 
 from OpenSSL import crypto
-from pircel import model, tornado_adapter
+from pircel import tornado_adapter
 
 from playhouse import db_url
 
@@ -16,7 +16,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.web import url
 
-from possel import auth, push, resources, web_client
+from possel import auth, model, push, resources, web_client
 
 
 def get_routes(interfaces):

@@ -11,9 +11,9 @@ from cryptography.hazmat import backends
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf import pbkdf2
 import peewee as p
-from pircel import model
 import tornado.web
 
+from possel import model
 
 logger = logging.getLogger(__name__)
 
