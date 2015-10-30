@@ -54,3 +54,6 @@ target/
 
 # Ctags
 tags
+
+# Local db
+possel.db
