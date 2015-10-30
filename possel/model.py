@@ -125,7 +125,7 @@ class IRCUserModel(UserDetails):
                    )
 
 
-buffer_types = [('normal', 'Standard Buffer'),
+BUFFER_TYPES = [('normal', 'Standard Buffer'),
                 ('system', 'System buffer for a server'),
                 ]
 
@@ -137,7 +137,7 @@ class IRCBufferModel(BaseModel):
     """
     name = p.TextField()  # either a channel '#channel' or a nick 'nick'
     server = p.ForeignKeyField(IRCServerModel, related_name='buffers', on_delete='CASCADE', null=True)
-    kind = p.CharField(max_length=20, default='normal', choices=buffer_types)
+    kind = p.CharField(max_length=20, default='normal', choices=BUFFER_TYPES)
     current = p.BooleanField()  # Are we in it?
 
     class Meta:
@@ -145,7 +145,7 @@ class IRCBufferModel(BaseModel):
                    )
 
 
-line_types = [('message', 'Message'),
+LINE_TYPES = [('message', 'Message'),
               ('notice', 'Notice'),
               ('join', 'Join'),
               ('part', 'Part'),
@@ -171,7 +171,7 @@ class IRCLineModel(BaseModel):
     nick = p.TextField(null=True)  # We store the nick of the user at the time of the message
 
     # What
-    kind = p.CharField(max_length=20, default='message', choices=line_types)
+    kind = p.CharField(max_length=20, default='message', choices=LINE_TYPES)
     content = p.TextField()
 
     def to_dict(self):
@@ -207,12 +207,12 @@ def initialize():
 
 
 # Callback signal definitions
-new_user = 'new_user'
-new_line = 'new_line'
-new_buffer = 'new_buffer'
-new_server = 'new_server'
-new_membership = 'new_membership'
-deleted_membership = 'deleted_membership'
+NEW_USER = 'new_user'
+NEW_LINE = 'new_line'
+NEW_BUFFER = 'new_buffer'
+NEW_SERVER = 'new_server'
+NEW_MEMBERSHIP = 'new_membership'
+DELETED_MEMBERSHIP = 'deleted_membership'
 
 
 # =========================================================================
@@ -240,7 +240,7 @@ def create_user(nick, server, current=True, realname=None, username=None, host=N
     # Then we actually create a user
     user = IRCUserModel.create(nick=nick, realname=realname, username=username, host=host, server=server,
                                current=current)
-    signal_factory(new_user).send(None, user=user, server=user.server)
+    signal_factory(NEW_USER).send(None, user=user, server=user.server)
     return user
 
 
@@ -264,7 +264,7 @@ def update_user(user, nick=None, realname=None, username=None, host=None, curren
         user.current = current
 
     user.save()
-    signal_factory(new_user).send(None, user=user, server=user.server)
+    signal_factory(NEW_USER).send(None, user=user, server=user.server)
     return user
 
 
@@ -276,7 +276,7 @@ def create_line(buffer, content, kind, user=None, nick=None):
     else:
         line = IRCLineModel.create(buffer=buffer, content=content, kind=kind, user=user)
     server = line.buffer.server
-    signal_factory(new_line).send(None, line=line, server=server)
+    signal_factory(NEW_LINE).send(None, line=line, server=server)
     return line
 
 
@@ -285,26 +285,26 @@ def create_buffer(name, server, kind=None):
         buffer = IRCBufferModel.create(name=name, server=server, current=True, kind=kind)
     else:
         buffer = IRCBufferModel.create(name=name, server=server, current=True)
-    signal_factory(new_buffer).send(None, buffer=buffer, server=buffer.server)
+    signal_factory(NEW_BUFFER).send(None, buffer=buffer, server=buffer.server)
     return buffer
 
 
 def create_membership(buffer, user):
     membership = IRCBufferMembershipRelation.create(buffer=buffer, user=user)
-    signal_factory(new_membership).send(None, membership=membership, buffer=buffer, user=user)
+    signal_factory(NEW_MEMBERSHIP).send(None, membership=membership, buffer=buffer, user=user)
     return membership
 
 
 def delete_membership(user, buffer):
     membership = IRCBufferMembershipRelation.get(user=user, buffer=buffer)
     membership.delete_instance()
-    signal_factory(deleted_membership).send(None, membership=membership, buffer=buffer, user=user)
+    signal_factory(DELETED_MEMBERSHIP).send(None, membership=membership, buffer=buffer, user=user)
 
 
 def create_server(host, port, secure, nick, realname, username):
     user = UserDetails.create(nick=nick, realname=realname, username=username)
     server = IRCServerModel.create(host=host, port=port, secure=secure, user=user)
-    signal_factory(new_server).send(None, server=server)
+    signal_factory(NEW_SERVER).send(None, server=server)
     return server
 # =========================================================================
 
@@ -366,7 +366,7 @@ def ensure_membership(buffer, user):
 # =========================================================================
 
 
-sysnick = '-*-'
+SYSNICK = '-*-'
 
 
 class IRCServerInterface:
@@ -469,7 +469,7 @@ class IRCServerInterface:
 
     def _handle_server_notice(self, msg):
         buffer = self.system_buffer
-        create_line(buffer=buffer, kind='notice', nick=sysnick, content=msg)
+        create_line(buffer=buffer, kind='notice', nick=SYSNICK, content=msg)
 
     def _handle_privmsg(self, _, **kwargs):
         who_from = kwargs['prefix']
@@ -562,26 +562,26 @@ class IRCServerInterface:
 
     def _handle_rpl_motd(self, _, **kwargs):
         _, line, *other_args = kwargs['args']
-        create_line(buffer=self.system_buffer, nick=sysnick, kind='other', content=line)
+        create_line(buffer=self.system_buffer, nick=SYSNICK, kind='other', content=line)
 
     def _handle_topic(self, _, **kwargs):
         nick, username, host = protocol.parse_identity(kwargs['prefix'])
         channel, topic = kwargs['args']
         buffer = ensure_buffer(name=channel, server=self.server_model)
-        create_line(buffer=buffer, nick=sysnick, server=self.server_model,
+        create_line(buffer=buffer, nick=SYSNICK, server=self.server_model,
                     content='{} changed the topic for {} to: {}'.format(nick, channel, topic))
 
     def _handle_rpl_topic(self, _, **kwargs):
         _, channel, topic = kwargs['args']
         buffer = ensure_buffer(name=channel, server=self.server_model)
-        create_line(buffer=buffer, nick=sysnick, kind='topic',
+        create_line(buffer=buffer, nick=SYSNICK, kind='topic',
                     content='Topic for {}: {}'.format(channel, topic))
 
     def _handle_rpl_topicwhotime(self, _, **kwargs):
         _, channel, user, timestamp = kwargs['args']
         nick, username, host = protocol.parse_identity(user)
         buffer = ensure_buffer(name=channel, server=self.server_model)
-        create_line(buffer=buffer, nick=sysnick, kind='topic',
+        create_line(buffer=buffer, nick=SYSNICK, kind='topic',
                     content='Topic set by {}'.format(nick))
 
     def _handle_rpl_notopic(self, _, **kwargs):

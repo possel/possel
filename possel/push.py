@@ -64,12 +64,12 @@ class ResourcePusher(websocket.WebSocketHandler):
 
     def initialize(self, interfaces):
         self.interfaces = interfaces
-        self.signals = {model.new_line: self.send_line_id,
-                        model.new_buffer: self.send_buffer_id,
-                        model.new_user: self.send_user_id,
-                        model.new_server: self.send_server_id,
-                        model.new_membership: self.send_membership,
-                        model.deleted_membership: self.send_deleted_membership,
+        self.signals = {model.NEW_LINE: self.send_line_id,
+                        model.NEW_BUFFER: self.send_buffer_id,
+                        model.NEW_USER: self.send_user_id,
+                        model.NEW_SERVER: self.send_server_id,
+                        model.NEW_MEMBERSHIP: self.send_membership,
+                        model.DELETED_MEMBERSHIP: self.send_deleted_membership,
                         }
 
     def open(self):
